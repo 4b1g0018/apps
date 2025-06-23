@@ -1,9 +1,9 @@
 // lib/pages/select_exercise_page.dart
 
 import 'package:flutter/material.dart';
-// 引入我們的資料模型和假資料服務
 import '../models/exercise_model.dart';
 import '../services/mock_data_service.dart';
+import './exercise_setup_page.dart';
 
 // 這個頁面也是一個 StatelessWidget，因為它顯示的內容
 // 取決於從上一個頁面傳進來的 `bodyPart`。
@@ -47,8 +47,13 @@ class SelectExercisePage extends StatelessWidget {
             ),
             child: InkWell(
               onTap: () {
-                // 在這裡我們可以導航到這個動作的詳細設定頁面
-                // (例如設定組數、時間等等)。
+                // 導航到訓練設定頁面
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                    builder: (context) =>ExerciseSetupPage(exercise: exercise), // 我們把使用者點擊的這整個 exercise，當作參數傳給ExerciseSetupPage
+                  ),
+               );
               },
               // 這裡我們用 Row 佈局來實現「左圖右文」的效果。
               child: Row(
