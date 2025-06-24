@@ -8,7 +8,6 @@ import './exercise_setup_page.dart';
 // 這個頁面也是一個 StatelessWidget，因為它顯示的內容
 // 取決於從上一個頁面傳進來的 `bodyPart`。
 class SelectExercisePage extends StatelessWidget {
-
   // 我們定義一個 `final` 的 `bodyPart` 變數，
   // 用來接收從 `SelectPartPage` 傳過來的身體部位。
   final BodyPart bodyPart;
@@ -23,7 +22,7 @@ class SelectExercisePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        // 標題會動態顯示傳入的部位名稱，例如 "胸部 訓練動作"。
+         // 標題會根據傳入的部位動態顯示
         title: Text('${bodyPart.displayName} 訓練動作'),
         centerTitle: true,
       ),
@@ -49,11 +48,14 @@ class SelectExercisePage extends StatelessWidget {
               onTap: () {
                 // 導航到訓練設定頁面
                   Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                    builder: (context) =>ExerciseSetupPage(exercise: exercise), // 我們把使用者點擊的這整個 exercise，當作參數傳給ExerciseSetupPage
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ExerciseSetupPage(
+                      exercise: exercise,
+                      bodyPart: bodyPart, // 把接力棒傳下去
+                    ),
                   ),
-               );
+                );
               },
               // 這裡我們用 Row 佈局來實現「左圖右文」的效果。
               child: Row(

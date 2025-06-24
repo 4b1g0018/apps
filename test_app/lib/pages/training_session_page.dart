@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/exercise_model.dart';
 import '../models/workout_log_model.dart';
 import './training_summary_page.dart';
+import '../services/database_helper.dart';
 
 // --- 頁面主體：TrainingSessionPage ---
 // 這是一個 StatefulWidget，因為頁面上的計時器、組數等狀態會不斷改變。
@@ -14,12 +15,14 @@ class TrainingSessionPage extends StatefulWidget {
   final Exercise exercise;
   final int totalSets;
   final int restTimeInSeconds;
+  final BodyPart bodyPart;
 
   const TrainingSessionPage({
     super.key,
     required this.exercise,
     required this.totalSets,
     required this.restTimeInSeconds,
+    required this.bodyPart,
   });
 
   @override
@@ -81,26 +84,33 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
   }
 
   // --- 核心邏輯：完成一組訓練 ---
-  void _finishSet() {
+  void _finishSet() async {
+    //新增非同步 （存取資料庫）
     if (_currentSet < widget.totalSets) {
       // 如果還沒達到總組數
       setState(() {
         _isResting = true; // 進入休息狀態
-        _currentSet++;     // 組數加 1
+        _currentSet++; // 組數加 1
         _countdownSeconds = widget.restTimeInSeconds; // 設定休息倒數時間
       });
       _startCountdown(); // 開始休息倒數
     } else {
- // --- 如果已經完成所有組數 ---
-      // 1. 建立一個訓練紀錄物件
+      // --- 如果已經完成所有組數 ---
+      // 建立一個訓練紀錄物件
+      // 建立 WorkoutLog 物件時，把 bodyPart 也加進去
       final workoutLog = WorkoutLog(
         exerciseName: widget.exercise.name,
         totalSets: widget.totalSets,
-        completedAt: DateTime.now(), // 使用當下的時間作為完成時間
+        completedAt: DateTime.now(),
+        bodyPart: widget.bodyPart, // 接力棒的最後一站！
       );
 
-      // 2. 導航到訓練總結頁面
-      // 我們使用 `pushReplacement`，它會用新頁面「取代」目前這個頁面。
+      //寫入訓練紀錄
+      await DatabaseHelper.instance.insertWorkoutLog(workoutLog);
+      if (!mounted) return; //非同步要檢查頁面
+
+      // 導向總結頁面
+      // 使用 `pushReplacement`，它會用新頁面「取代」目前這個頁面。
       // 這樣使用者就不會從總結頁面按返回鍵，又回到計時頁面了。
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -109,6 +119,7 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
       );
     }
   }
+
   // --- UI 畫面繪製 ---
   @override
   Widget build(BuildContext context) {
@@ -145,7 +156,10 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
             if (_isStarted || _isResting)
               Text(
                 '$_countdownSeconds',
-                style: const TextStyle(fontSize: 120, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 120,
+                  fontWeight: FontWeight.bold,
+                ),
               )
             // 如果正在訓練中
             else
@@ -159,7 +173,6 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
               ),
 
             const Spacer(), // 把按鈕推到下面
-
             // --- 按鈕區塊 ---
             Padding(
               padding: const EdgeInsets.all(24.0),
