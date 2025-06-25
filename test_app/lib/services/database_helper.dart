@@ -3,6 +3,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' show join;
 import '../models/workout_log_model.dart';
+import '../models/user_model.dart';
 
 // SQLite 輔助類別，處理初始化與基本 CRUD
 class DatabaseHelper {
@@ -33,19 +34,19 @@ class DatabaseHelper {
               exerciseName TEXT,
               totalSets INTEGER,
               completedAt TEXT
-          )
+            )
           ''');
         }
-         // 【新增】新的升級邏輯：當從版本 2 升到 3 時，為 workout_logs 表新增 bodyPart 欄位
+        // 【新增】新的升級邏輯：當從版本 2 升到 3 時，為 workout_logs 表新增 bodyPart 欄位
         if (oldVersion < 3) {
           await db.execute('ALTER TABLE workout_logs ADD COLUMN bodyPart TEXT');
-      }
+        }
       },
     );
   }
 
   // 將建立資料表的邏輯抽出來，方便重複使用
-Future<void> _createTables(Database db) async {
+  Future<void> _createTables(Database db) async {
     await db.execute('''
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +54,7 @@ Future<void> _createTables(Database db) async {
         weight TEXT, age TEXT, bmi TEXT, fat TEXT
       )
     ''');
-     await db.execute('''
+    await db.execute('''
       CREATE TABLE workout_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         exerciseName TEXT,
@@ -101,5 +102,34 @@ Future<void> _createTables(Database db) async {
     return List.generate(maps.length, (i) {
       return WorkoutLog.fromMap(maps[i]);
     });
+  }
+
+  // --- 【新增】根據帳號取得使用者資料 ---
+  // 這個方法會回傳一個 User 物件，如果找不到就回傳 null
+ Future<User?> getUserByAccount(String account) async {
+    final database = await db;
+    final List<Map<String, dynamic>> maps = await database.query(
+      'users',
+      where: 'account = ?',
+      whereArgs: [account],
+      limit: 1,
+    );
+
+    if (maps.isNotEmpty) {
+      return User.fromMap(maps.first);
+    }
+    return null;
+  } 
+
+  // --- 【新增】更新使用者資料 ---
+  Future<int> updateUser(User user) async {
+    final database = await db;
+    // `update` 方法會回傳被更新的資料筆數
+    return await database.update(
+      'users',
+      user.toMap(), // 將 User 物件轉換成資料庫格式
+      where: 'id = ?',
+      whereArgs: [user.id],
+    );
   }
 }

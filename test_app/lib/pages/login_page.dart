@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
       if (valid) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainMenuPage()),
+          MaterialPageRoute(builder: (_) => MainMenuPage(account: acc)),
         );
       } else {
         ScaffoldMessenger.of(context)
