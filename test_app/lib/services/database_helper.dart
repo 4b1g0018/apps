@@ -46,7 +46,8 @@ class DatabaseHelper {
   }
 
   // 將建立資料表的邏輯抽出來，方便重複使用
-  Future<void> _createTables(Database db) async {
+Future<void> _createTables(Database db) async {
+    // 建立 users 資料表
     await db.execute('''
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,7 +55,8 @@ class DatabaseHelper {
         weight TEXT, age TEXT, bmi TEXT, fat TEXT
       )
     ''');
-    await db.execute('''
+    // 建立 workout_logs 資料表
+     await db.execute('''
       CREATE TABLE workout_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         exerciseName TEXT,
@@ -63,6 +65,17 @@ class DatabaseHelper {
         bodyPart TEXT 
       )
     ''');
+
+    // 【新增】預設建立一位 admin 帳號，方便我們測試
+    await db.insert('users', {
+      'account': 'admin',
+      'password': 'admin123',
+      'height': '170',
+      'weight': '60',
+      'age': '30',
+      'bmi': '20.76',
+      'fat': '15',
+    });
   }
 
   //註冊用戶資料

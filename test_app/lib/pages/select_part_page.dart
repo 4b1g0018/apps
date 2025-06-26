@@ -1,9 +1,7 @@
 // lib/pages/select_part_page.dart
 
 import 'package:flutter/material.dart';
-
-// 引用我們上面確認過的 model 檔案
-import 'package:test_app/models/exercise_model.dart';
+import '../models/exercise_model.dart';
 import './select_exercise_page.dart';
 
 class SelectPartPage extends StatelessWidget {
@@ -11,57 +9,70 @@ class SelectPartPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bodyParts = BodyPart.values;
+    // 我們可以手動定義要顯示的部位順序
+    final bodyParts = [
+      BodyPart.chest,
+      BodyPart.back,
+      BodyPart.shoulders,
+      BodyPart.legs,
+      BodyPart.biceps,
+      BodyPart.triceps,
+      BodyPart.abs,
+    ];
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('選擇訓練部位'),
-        centerTitle: true,
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16.0),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.2,
-        ),
+      // --- 【還原】我們將 GridView.builder 改回 ListView.builder ---
+      body: ListView.builder(
+        // 我們可以為整個列表加上一些垂直的邊距
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
         itemCount: bodyParts.length,
         itemBuilder: (context, index) {
           final part = bodyParts[index];
-          return _buildPartCard(context, part);
+          // 直接回傳我們之前設計好的列表項目卡片樣式
+          return _buildPartListItem(context, part);
         },
       ),
     );
   }
 
-  Widget _buildPartCard(BuildContext context, BodyPart part) {
-    return InkWell(
-      onTap: () {
-    // 【修改】
-        // 當使用者點擊卡片時，我們執行頁面導航。
-        Navigator.push(
-          context,
-          // `MaterialPageRoute` 是 Flutter 提供的標準頁面切換效果。
-          MaterialPageRoute(
-            // `builder` 會建立目標頁面的實例。
-            // 我們把使用者點擊的 `part` 作為參數，傳遞給 `SelectExercisePage`。
-            builder: (context) => SelectExercisePage(bodyPart: part),
-       ),
-        );
-      },
-      borderRadius: BorderRadius.circular(12),
+  // --- 我們使用回之前設計的「橫幅列表」Helper 方法 ---
+  Widget _buildPartListItem(BuildContext context, BodyPart part) {
+    return Padding(
+      // 為每個列表項目卡片，加上水平方向的邊距
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
       child: Card(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(part.icon, size: 48, color: Theme.of(context).primaryColor),
-            const SizedBox(height: 12),
-            Text(
-              part.displayName,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        // `clipBehavior` 可以防止 InkWell 的水波紋效果超出卡片的圓角範圍
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SelectExercisePage(bodyPart: part),
+              ),
+            );
+          },
+          // --- 我們使用 ListTile 來輕鬆實現「左圖中文字右箭頭」的經典佈局 ---
+          child: ListTile(
+            // `contentPadding` 可以調整 ListTile 內部的邊距
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+            // `leading` 是顯示在標題最左側的元件
+            leading: Image.asset(
+              part.imagePath,
+              width: 40,
+              height: 40,
             ),
-          ],
+            // `title` 是列表項目的主標題
+            title: Text(
+              part.displayName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            // `trailing` 是顯示在項目最右側的元件
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          ),
         ),
       ),
     );
