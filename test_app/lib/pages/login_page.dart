@@ -20,7 +20,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _fat = TextEditingController();
   final TextEditingController _bmiController = TextEditingController();
   bool isLogin = true;
-
+  bool _isPasswordVisible = false;
+  
   void _toggleMode() => setState(() => isLogin = !isLogin);
 
   void _updateBMI() {
@@ -107,8 +108,29 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _password,
-                    decoration: const InputDecoration(labelText: '密碼'),
-                    obscureText: true,
+                    // `obscureText` 這個屬性用來決定是否要將文字顯示為星號或圓點
+                    // 它的值，現在由我們新增的 `_isPasswordVisible` 狀態來控制。
+                    // `!` 是「非」的意思，所以 `!_isPasswordVisible` 代表：當密碼「不可見」時，這個值為 true (隱藏文字)。
+                    obscureText: !_isPasswordVisible,
+                    decoration: InputDecoration(
+                      labelText: '密碼',
+                      // `suffixIcon` 可以在輸入框的「最右邊」加上一個圖示按鈕
+                      suffixIcon: IconButton(
+                        // 我們根據 `_isPasswordVisible` 的狀態，來決定要顯示「眼睛打開」還是「眼睛關閉」的圖示
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility_off_outlined // 如果可見，顯示「關眼」圖示
+                              : Icons.visibility_outlined,    // 如果不可見，顯示「開眼」圖示
+                        ),
+                        // 當使用者點擊這個圖示按鈕時
+                        onPressed: () {
+                          // 我們呼叫 setState，並將 `_isPasswordVisible` 的狀態反轉
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                      ),
+                    ),
                     validator: (v) => v!.isEmpty ? '請輸入密碼' : null,
                   ),
                   

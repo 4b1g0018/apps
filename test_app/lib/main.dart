@@ -19,8 +19,8 @@ class MyApp extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    // 我們選用一個更沉穩、帶有黑色調的深藍色
-    const Color primaryColor = Color(0xFF2563EB);
+    // 【顏色還原】我們將顏色改回之前那個更明亮、清晰的藍色
+    const Color primaryColor = Color(0xFF0A84FF);
 
     return MaterialApp(
       title: '智慧健身 App',
@@ -37,6 +37,19 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
           surface: const Color(0xFF1C1C1E),
           primary: primaryColor,
+        ),
+
+        // --- 【Linter 修正】 ---
+        // 我們將所有不推薦使用的 MaterialState... 
+        // 改為官方建議的 WidgetState...
+        switchTheme: SwitchThemeData(
+          thumbColor: WidgetStateProperty.all(Colors.white),
+          trackColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const Color(0xFF00B900);
+            }
+            return Colors.grey.shade600;
+          }),
         ),
 
         appBarTheme: const AppBarTheme(
