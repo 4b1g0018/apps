@@ -19,7 +19,6 @@ class MyApp extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    // 【顏色還原】我們將顏色改回之前那個更明亮、清晰的藍色
     const Color primaryColor = Color(0xFF0A84FF);
 
     return MaterialApp(
@@ -39,15 +38,17 @@ class MyApp extends StatelessWidget {
           primary: primaryColor,
         ),
 
-        // --- 【Linter 修正】 ---
-        // 我們將所有不推薦使用的 MaterialState... 
-        // 改為官方建議的 WidgetState...
+        // --- 【新增】Switch 的全域主題設定 ---
         switchTheme: SwitchThemeData(
+          // `thumbColor` 是指開關中間那個可以滑動的圓點
           thumbColor: WidgetStateProperty.all(Colors.white),
+          // `trackColor` 是指開關的軌道背景顏色
           trackColor: WidgetStateProperty.resolveWith((states) {
+            // 當開關處於「被選中」(selected) 狀態時，我們使用亮綠色
             if (states.contains(WidgetState.selected)) {
-              return const Color(0xFF00B900);
+              return const Color(0xFF00B900); // 類似 LINE 的亮綠色
             }
+            // 否則，使用預設的深灰色
             return Colors.grey.shade600;
           }),
         ),

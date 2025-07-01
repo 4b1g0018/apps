@@ -145,4 +145,16 @@ Future<void> _createTables(Database db) async {
       whereArgs: [user.id],
     );
   }
+
+
+
+// --- 【新增】刪除所有訓練紀錄 ---
+  // 這個方法會回傳被刪除的資料筆數
+  Future<int> deleteAllWorkoutLogs() async {
+    final database = await db;
+    // `db.delete()` 是 sqflite 套件提供的標準刪除方法。
+    // 我們傳入資料表的名稱 'workout_logs'，因為沒有指定 `where` 條件，
+    // 所以它會刪除這個資料表中的「所有」資料。
+    return await database.delete('workout_logs');
+  }
 }
