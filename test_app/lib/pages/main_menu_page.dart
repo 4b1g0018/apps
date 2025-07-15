@@ -69,7 +69,7 @@ class MainMenuPage extends StatelessWidget {
                   imagePath: 'image/page_icon/設定.png',
                   title: '詳細設定',
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+                   Navigator.push(context, MaterialPageRoute(builder: (context) => SettingsPage(account: account)));
                   },
                 ),
               ],

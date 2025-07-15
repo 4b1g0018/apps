@@ -1,8 +1,9 @@
 // lib/pages/login_page.dart
 
+
 import 'package:flutter/material.dart';
 import '../services/database_helper.dart';
-import './main_menu_page.dart';
+import '../main.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -66,9 +67,9 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       if (valid) {
         Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => MainMenuPage(account: acc)),
-        );
+        context,
+          MaterialPageRoute(builder: (_) => MainAppShell(account: acc)),
+          );
       } else {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('帳號或密碼錯誤')));

@@ -5,6 +5,12 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import './services/database_helper.dart';
 import './pages/login_page.dart';
+// 【新增】導入所有我們需要的主要頁面
+import './pages/dashboard_home_page.dart';
+import './pages/select_part_page.dart';
+import './pages/workout_history_page.dart';
+import './pages/recommendations_page.dart';
+import './pages/settings_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +25,7 @@ class MyApp extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    // 您原有的主題設定，完全保留
     const Color primaryColor = Color(0xFF0A84FF);
 
     return MaterialApp(
@@ -38,17 +45,12 @@ class MyApp extends StatelessWidget {
           primary: primaryColor,
         ),
 
-        // --- 【新增】Switch 的全域主題設定 ---
         switchTheme: SwitchThemeData(
-          // `thumbColor` 是指開關中間那個可以滑動的圓點
           thumbColor: WidgetStateProperty.all(Colors.white),
-          // `trackColor` 是指開關的軌道背景顏色
           trackColor: WidgetStateProperty.resolveWith((states) {
-            // 當開關處於「被選中」(selected) 狀態時，我們使用亮綠色
             if (states.contains(WidgetState.selected)) {
-              return const Color(0xFF00B900); // 類似 LINE 的亮綠色
+              return const Color(0xFF00B900);
             }
-            // 否則，使用預設的深灰色
             return Colors.grey.shade600;
           }),
         ),
@@ -99,9 +101,92 @@ class MyApp extends StatelessWidget {
             color: primaryColor,
           ),
         ),
-      ),
 
+        // 【新增】為底部導覽列加入符合您風格的主題設定
+        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+          backgroundColor: const Color(0xFF1C1C1E), // 背景色與您的 scaffoldBackgroundColor 一致
+          selectedItemColor: primaryColor, // 選中項目的顏色用您的主題色
+          unselectedItemColor: Colors.grey.shade600, // 未選中項目的顏色
+          type: BottomNavigationBarType.fixed, // 確保項目都可見
+        ),
+      ),
+      // App 入口點不變
       home: const LoginPage(),
+    );
+  }
+}
+
+
+// 【新增】我們之前建立的 MainAppShell 導覽列框架，原封不動加到這裡
+class MainAppShell extends StatefulWidget {
+  final String account;
+  const MainAppShell({super.key, required this.account});
+
+  @override
+  State<MainAppShell> createState() => _MainAppShellState();
+}
+
+class _MainAppShellState extends State<MainAppShell> {
+  int _selectedIndex = 0;
+
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = <Widget>[
+      const DashboardHomePage(),
+      const SelectPartPage(),
+      const WorkoutHistoryPage(),
+      const RecommendationsPage(),
+      SettingsPage(account: widget.account),
+    ];
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: '首頁',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.fitness_center_outlined),
+            activeIcon: Icon(Icons.fitness_center),
+            label: '開始訓練',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today_outlined),
+            activeIcon: Icon(Icons.calendar_today),
+            label: '日曆',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.lightbulb_outline),
+            activeIcon: Icon(Icons.lightbulb),
+            label: '建議課程',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: '設定',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+      ),
     );
   }
 }
