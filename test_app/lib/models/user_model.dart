@@ -11,6 +11,10 @@ class User {
   final String bmi;
   final String? fat; // 體脂率是選填，所以設為可選
 
+  // 新增欄位
+  final String? gender; // 性別，'male' 或 'female'
+  final String? bmr;    // BMR，儲存計算結果
+
   User({
     this.id,
     required this.account,
@@ -20,6 +24,9 @@ class User {
     required this.age,
     required this.bmi,
     this.fat,
+    // 加入建構子
+    this.gender, 
+    this.bmr,
   });
 
   // 將 User 物件轉換成 Map，方便寫入資料庫
@@ -33,6 +40,9 @@ class User {
       'age': age,
       'bmi': bmi,
       'fat': fat,
+      // 加入 Map
+      'gender': gender,
+      'bmr': bmr,
     };
   }
 
@@ -47,6 +57,9 @@ class User {
       age: map['age'],
       bmi: map['bmi'],
       fat: map['fat'],
+      // 從 Map 讀取
+      gender: map['gender'],
+      bmr: map['bmr'],
     );
   }
 
@@ -60,6 +73,9 @@ class User {
     String? age,
     String? bmi,
     String? fat,
+    // 加入 copyWith
+    String? gender,
+    String? bmr,
   }) {
     return User(
       id: id ?? this.id,
@@ -70,6 +86,9 @@ class User {
       age: age ?? this.age,
       bmi: bmi ?? this.bmi,
       fat: fat ?? this.fat,
+      // copyWith
+      gender: gender ?? this.gender,
+      bmr: bmr ?? this.bmr,
     );
   }
 }

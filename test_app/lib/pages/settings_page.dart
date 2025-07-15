@@ -64,13 +64,13 @@ class _SettingsPageState extends State<SettingsPage> {
       final file = File(path);
       await file.writeAsString(fileContent);
 
-      final result = await Share.shareXFiles([XFile(path)], text: '我的訓練紀錄');
+       await Share.shareXFiles([XFile(path)], text: '我的訓練紀錄');
 
-      if (result.status == ShareResultStatus.success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('匯出檔案已準備就緒！')),
-        );
-      }
+       if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('分享視窗已開啟')),
+      );
+    }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

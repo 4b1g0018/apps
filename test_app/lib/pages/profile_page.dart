@@ -20,6 +20,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _ageController = TextEditingController();
   final TextEditingController _fatController = TextEditingController();
   final TextEditingController _bmiController = TextEditingController();
+  final TextEditingController _bmrController = TextEditingController(); 
   
   @override
   void initState() { super.initState(); _loadUserData(); }
@@ -34,19 +35,40 @@ class _ProfilePageState extends State<ProfilePage> {
         _ageController.text = user.age;
         _fatController.text = user.fat ?? '';
         _bmiController.text = user.bmi;
+        _bmrController.text = user.bmr ?? '';
       });
     }
   }
 
-  void _updateBMI() {
+  void _calculateMetrics() {
     final h = double.tryParse(_heightController.text);
     final w = double.tryParse(_weightController.text);
+    final a = int.tryParse(_ageController.text);
+
     if (h != null && w != null && h > 0) {
       final bmi = w / ((h / 100) * (h / 100));
       _bmiController.text = bmi.toStringAsFixed(2);
+
+        //BMR 計算邏輯
+      if (a != null && a > 0 && _currentUser?.gender != null) {
+        double bmr = 0;
+        if (_currentUser!.gender == 'male') {
+          bmr = (10 * w) + (6.25 * h) - (5 * a) + 5;
+        } else {
+          bmr = (10 * w) + (6.25 * h) - (5 * a) - 161;
+        }
+        _bmrController.text = bmr.toStringAsFixed(2);
+      } else {
+        _bmrController.text = '';
+      }
+
     } else {
       _bmiController.text = '';
+      _bmrController.text = ''; // 【新增】如果身高體重無效，也清空 BMR
     }
+    // 因為我們是直接操作 Controller 的 text，如果希望畫面即時反應可以不用 setState
+    // 但如果後續有其他依賴狀態的 UI，加上 setState 會更保險
+    setState(() {});
   }
 
   Future<void> _saveChanges() async {
@@ -57,6 +79,7 @@ class _ProfilePageState extends State<ProfilePage> {
         age: _ageController.text,
         fat: _fatController.text,
         bmi: _bmiController.text,
+        bmr: _bmrController.text,
       );
       await DatabaseHelper.instance.updateUser(updatedUser);
       if (!mounted) return;
@@ -80,24 +103,24 @@ class _ProfilePageState extends State<ProfilePage> {
               child: ListView(
                 padding: const EdgeInsets.all(24.0),
                 children: [
-                  // --- 【最終修正】我們用一個新的 Helper 方法來建立帶有常駐標題的輸入框 ---
                   _buildLabeledTextField(
                     label: '身高 (cm)',
                     controller: _heightController,
-                    onChanged: (_) => _updateBMI(),
+                    onChanged: (_) => _calculateMetrics(), 
                     validator: (v) => v!.isEmpty ? '此欄位不得為空' : null,
                   ),
                   const SizedBox(height: 24), // 加大欄位之間的垂直間距
                   _buildLabeledTextField(
                     label: '體重 (kg)',
                     controller: _weightController,
-                    onChanged: (_) => _updateBMI(),
+                    onChanged: (_) => _calculateMetrics(), 
                     validator: (v) => v!.isEmpty ? '此欄位不得為空' : null,
                   ),
                   const SizedBox(height: 24),
                   _buildLabeledTextField(
                     label: '年齡',
                     controller: _ageController,
+                    onChanged: (_) => _calculateMetrics(),
                     validator: (v) => v!.isEmpty ? '此欄位不得為空' : null,
                   ),
                   const SizedBox(height: 24),
@@ -113,6 +136,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     controller: _bmiController,
                     readOnly: true,
                   ),
+
+                const SizedBox(height: 24),
+                _buildLabeledTextField(
+                 label: 'BMR (基礎代謝率) (自動計算)',
+                  controller: _bmrController,
+                  readOnly: true,
+                  ),
+
                   const SizedBox(height: 40),
                   ElevatedButton(
                     onPressed: _saveChanges,

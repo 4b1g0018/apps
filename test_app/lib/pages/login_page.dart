@@ -19,6 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _age = TextEditingController();
   final TextEditingController _fat = TextEditingController();
   final TextEditingController _bmiController = TextEditingController();
+  final TextEditingController _bmrController = TextEditingController();
+  final List<bool> _genderSelection = [true, false]; 
   bool isLogin = true;
   bool _isPasswordVisible = false;
   
@@ -32,6 +34,25 @@ class _LoginPageState extends State<LoginPage> {
       _bmiController.text = bmi.toStringAsFixed(2);
     } else {
       _bmiController.text = '';
+    }
+  }
+
+  void _updateBMR() {
+    final h = double.tryParse(_height.text);
+    final w = double.tryParse(_weight.text);
+    final a = int.tryParse(_age.text);
+    final isMale = _genderSelection[0];
+
+    if (h != null && w != null && a != null && h > 0 && w > 0 && a > 0) {
+      double bmr = 0;
+      if (isMale) {
+        bmr = (10 * w) + (6.25 * h) - (5 * a) + 5;
+      } else {
+        bmr = (10 * w) + (6.25 * h) - (5 * a) - 161;
+      }
+      _bmrController.text = bmr.toStringAsFixed(2);
+    } else {
+      _bmrController.text = '';
     }
   }
 
@@ -58,9 +79,29 @@ class _LoginPageState extends State<LoginPage> {
       final bmi = (h != null && w != null && h > 0)
           ? (w / ((h / 100) * (h / 100))).toStringAsFixed(2)
           : '';
+
+       final a = int.tryParse(_age.text);
+      final gender = _genderSelection[0] ? 'male' : 'female';
+      String bmr = '';
+      if (h != null && w != null && a != null && h > 0 && w > 0 && a > 0) {
+        double bmrValue = 0;
+        if (gender == 'male') {
+          bmrValue = (10 * w) + (6.25 * h) - (5 * a) + 5;
+        } else {
+          bmrValue = (10 * w) + (6.25 * h) - (5 * a) - 161;
+        }
+        bmr = bmrValue.toStringAsFixed(2);
+      }
       if (bmi == '') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('BMI 計算失敗，請輸入正確的身高與體重')),
+        );
+        return;
+      }
+
+        if (bmr == '') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('BMR 計算失敗，請輸入正確的身高、體重與年齡')),
         );
         return;
       }
@@ -72,6 +113,8 @@ class _LoginPageState extends State<LoginPage> {
         'age': _age.text,
         'bmi': bmi,
         'fat': _fat.text,
+        'gender': gender,
+        'bmr': bmr,
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -135,13 +178,34 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   
                   if (!isLogin) ...[
+                         const SizedBox(height: 24),
+                    ToggleButtons(
+                      isSelected: _genderSelection,
+                      onPressed: (int index) {
+                        setState(() {
+                          for (int i = 0; i < _genderSelection.length; i++) {
+                            _genderSelection[i] = i == index;
+                          }
+                          // 性別變動後，也要重新計算 BMR
+                          _updateBMR();
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(8.0),
+                      constraints: BoxConstraints.expand(width: (MediaQuery.of(context).size.width - 52) / 2, height: 40),
+                       fillColor: _genderSelection[1] ? Colors.red.shade400 : Colors.blue.shade400,
+                       selectedColor: Colors.white,
+                      children: const [Text('男性'), Text('女性')],
+                    ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _height,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: '身高 (cm)'),
                       validator: (v) => v!.isEmpty ? '請輸入身高' : null,
-                      onChanged: (_) => _updateBMI(),
+                      onChanged: (_) {
+                        _updateBMI();
+                        _updateBMR();
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -149,7 +213,10 @@ class _LoginPageState extends State<LoginPage> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: '體重 (kg)'),
                       validator: (v) => v!.isEmpty ? '請輸入體重' : null,
-                      onChanged: (_) => _updateBMI(),
+                      onChanged: (_) {
+                        _updateBMI();
+                        _updateBMR();
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -157,12 +224,19 @@ class _LoginPageState extends State<LoginPage> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(labelText: '年齡'),
                       validator: (v) => v!.isEmpty ? '請輸入年齡' : null,
+                      onChanged: (_) => _updateBMR(),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       readOnly: true,
                       controller: _bmiController,
                       decoration: const InputDecoration(labelText: 'BMI (自動計算)'),
+                    ),
+                     const SizedBox(height: 16),
+                    TextFormField(
+                      readOnly: true,
+                      controller: _bmrController,
+                      decoration: const InputDecoration(labelText: 'BMR (自動計算)'),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -182,6 +256,7 @@ class _LoginPageState extends State<LoginPage> {
                       GestureDetector(onTap: _toggleMode, child: Text(isLogin ? ' 馬上註冊' : ' 前往登入', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF007AFF)))),
                     ],
                   ),
+                  
                   const SizedBox(height: 40),
                 ],
               ),
