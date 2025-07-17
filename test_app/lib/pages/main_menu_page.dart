@@ -38,7 +38,8 @@ class MainMenuPage extends StatelessWidget {
                   imagePath: 'image/page_icon/紀錄.png',
                   title: '訓練紀錄',
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkoutHistoryPage()));
+                    Navigator.push(context, MaterialPageRoute(builder: (context) => WorkoutHistoryPage(account: account)));
+  
                   },
                 ),
                  _buildMenuItem(

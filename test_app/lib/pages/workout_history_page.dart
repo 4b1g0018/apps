@@ -9,16 +9,16 @@ import '../models/exercise_model.dart';
 import '../services/database_helper.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
-  const WorkoutHistoryPage({super.key});
+  final String account;
+  const WorkoutHistoryPage({super.key, required this.account});
 
   @override
   State<WorkoutHistoryPage> createState() => _WorkoutHistoryPageState();
 }
 
 class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
+  // 【修改】我們不再需要 _selectedLogs，因為它會在 build 方法中即時產生
   late Future<List<WorkoutLog>> _logsFuture;
-  List<WorkoutLog> _allLogs = [];
-  List<WorkoutLog> _selectedLogs = [];
   
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -27,24 +27,17 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _logsFuture = DatabaseHelper.instance.getWorkoutLogs().then((logs) {
-      if (mounted) {
-        setState(() {
-          _allLogs = logs;
-          _selectedLogs = _getLogsForDay(_selectedDay!);
-        });
-      }
-      return logs;
-    });
+    // 【修改】initState 只負責觸發資料庫讀取，不做其他處理
+    _logsFuture = DatabaseHelper.instance.getWorkoutLogs();
   }
   
-  List<WorkoutLog> _getLogsForDay(DateTime day) {
-    return _allLogs.where((log) => isSameDay(log.completedAt, day)).toList();
+  // 這個方法維持不變，它會被 TableCalendar 使用
+  List<WorkoutLog> _getLogsForDay(DateTime day, List<WorkoutLog> allLogs) {
+    return allLogs.where((log) => isSameDay(log.completedAt, day)).toList();
   }
 
-  // --- 【修正】 ---
-  // 為 `switch` 陳述式加上 BodyPart.back 的情況
   Color _getColorForBodyPart(BodyPart part) {
+    // 您的顏色對應邏輯維持不變
     switch (part) {
       case BodyPart.chest: return Colors.yellow.shade700;
       case BodyPart.legs: return Colors.red.shade700;
@@ -52,7 +45,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
       case BodyPart.abs: return Colors.orange.shade700;
       case BodyPart.biceps: return Colors.green.shade700;
       case BodyPart.triceps: return Colors.purple.shade700;
-      case BodyPart.back: return Colors.brown.shade700; // 為「背」新增一個顏色
+      case BodyPart.back: return Colors.brown.shade700;
     }
   }
 
@@ -73,6 +66,10 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             return Center(child: Text('讀取資料時發生錯誤: ${snapshot.error}'));
           }
 
+          // 【修改】我們在 build 方法中才處理所有資料
+          final allLogs = snapshot.data ?? [];
+          final selectedLogs = _getLogsForDay(_selectedDay!, allLogs);
+
           return Column(
             children: [
               TableCalendar<WorkoutLog>(
@@ -81,21 +78,20 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: _focusedDay,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                calendarFormat: CalendarFormat.month,
-                eventLoader: _getLogsForDay,
+                // eventLoader 現在需要傳入 allLogs
+                eventLoader: (day) => _getLogsForDay(day, allLogs),
                 onDaySelected: (selectedDay, focusedDay) {
+                  // 【修改】onDaySelected 現在只負責更新「選中的日期」
+                  // build 方法會自動根據新日期來刷新列表
                   if (!isSameDay(_selectedDay, selectedDay)) {
                     setState(() {
                       _selectedDay = selectedDay;
                       _focusedDay = focusedDay;
-                      _selectedLogs = _getLogsForDay(selectedDay);
-});
+                    });
                   }
                 },
                 onPageChanged: (focusedDay) {
-                  setState(() {
-                    _focusedDay = focusedDay;
-                  });
+                  _focusedDay = focusedDay;
                 },
                 calendarStyle: const CalendarStyle(
                   outsideDaysVisible: false,
@@ -134,13 +130,13 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
               ),
               const Divider(),
               Expanded(
-                child: _selectedLogs.isEmpty
+                child: selectedLogs.isEmpty
                     ? const Center(child: Text('這天沒有訓練紀錄'))
                     : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        itemCount: _selectedLogs.length,
+                        itemCount: selectedLogs.length,
                         itemBuilder: (context, index) {
-                          final log = _selectedLogs[index];
+                          final log = selectedLogs[index];
                           return Card(
                             child: ListTile(
                               leading: CircleAvatar(

@@ -1,6 +1,6 @@
 # 專題開發日誌 - 2025/07/16
 
-**1. 核心導覽架構升級 (Core Navigation Architecture Upgrade)**
+**1. 核心導覽架構升級**
 
 為了提升 App 的易用性和擴充性，我們廢除了舊有的頁面跳轉模式，引入了現代 App 主流的 BottomNavigationBar (底部導覽列) 作為新的核心導覽框架。
 

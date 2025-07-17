@@ -12,6 +12,7 @@ import './pages/workout_history_page.dart';
 import './pages/recommendations_page.dart';
 import './pages/settings_page.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting();
@@ -135,9 +136,9 @@ class _MainAppShellState extends State<MainAppShell> {
   void initState() {
     super.initState();
     _pages = <Widget>[
-      const DashboardHomePage(),
+      DashboardHomePage(account: widget.account),
       const SelectPartPage(),
-      const WorkoutHistoryPage(),
+      WorkoutHistoryPage(account: widget.account), 
       const RecommendationsPage(),
       SettingsPage(account: widget.account),
     ];

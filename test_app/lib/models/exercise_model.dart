@@ -1,7 +1,6 @@
 // lib/models/exercise_model.dart
 
-
-// BodyPart 枚舉維持不變
+// BodyPart 枚舉
 enum BodyPart {
   chest,
   legs,
@@ -12,6 +11,7 @@ enum BodyPart {
   back,
 }
 
+// BodyPart 的擴充方法，用來取得顯示名稱和圖片路徑
 extension BodyPartExtension on BodyPart {
   String get displayName {
     switch (this) {
@@ -38,7 +38,7 @@ extension BodyPartExtension on BodyPart {
   }
 }
 
-// Exercise 類別維持不變
+// 【新增】請確保這個 Exercise 類別的定義存在於檔案中
 class Exercise {
   final String name;
   final String description;

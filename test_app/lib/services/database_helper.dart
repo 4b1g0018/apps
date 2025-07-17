@@ -2,8 +2,11 @@
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' show join;
+
+// 【修正】只導入需要的 model
 import '../models/workout_log_model.dart';
 import '../models/user_model.dart';
+import '../models/weight_log_model.dart';
 
 // SQLite 輔助類別，處理初始化與基本 CRUD
 class DatabaseHelper {
@@ -20,43 +23,53 @@ class DatabaseHelper {
     final path = join(dbPath, 'data.db');
     return await openDatabase(
       path,
-      version: 3, //更改版本
+      version: 4, // 【修改】版本號提升至 4
       onCreate: (db, version) async {
         return await _createTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        // 當我們提升 `version` 號時，這個函式會被呼叫。
-        // 這讓我們可以在不刪除舊有使用者資料的情況下，新增新的資料表。
+        // 舊有的升級邏輯保留
         if (oldVersion < 2) {
           await db.execute('''
             CREATE TABLE workout_logs (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              exerciseName TEXT,
-              totalSets INTEGER,
-              completedAt TEXT
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          exerciseName TEXT,
+          totalSets INTEGER,
+          completedAt TEXT,
+          bodyPart TEXT
             )
           ''');
         }
-        // 【新增】新的升級邏輯：當從版本 2 升到 3 時，為 workout_logs 表新增 bodyPart 欄位
-        if (oldVersion < 3) {
-          await db.execute('ALTER TABLE workout_logs ADD COLUMN bodyPart TEXT');
+        if (oldVersion == 2) {
+      await db.execute('ALTER TABLE workout_logs ADD COLUMN bodyPart TEXT');
+    }
+        // 【新增】新的升級邏輯：當從舊版本升到 4 時，建立 weight_logs 資料表
+       if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE weight_logs(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          weight REAL NOT NULL,
+          createdAt TEXT NOT NULL
+            )
+          ''');
         }
       },
     );
   }
 
   // 將建立資料表的邏輯抽出來，方便重複使用
-Future<void> _createTables(Database db) async {
+  Future<void> _createTables(Database db) async {
     // 建立 users 資料表
     await db.execute('''
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         account TEXT UNIQUE, password TEXT, height TEXT,
-        weight TEXT, age TEXT, bmi TEXT, fat TEXT
+        weight TEXT, age TEXT, bmi TEXT, fat TEXT,
+        gender TEXT, bmr TEXT
       )
     ''');
     // 建立 workout_logs 資料表
-     await db.execute('''
+    await db.execute('''
       CREATE TABLE workout_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         exerciseName TEXT,
@@ -65,8 +78,16 @@ Future<void> _createTables(Database db) async {
         bodyPart TEXT 
       )
     ''');
+    // 【新增】建立 weight_logs 資料表
+    await db.execute('''
+      CREATE TABLE weight_logs(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        weight REAL NOT NULL,
+        createdAt TEXT NOT NULL
+      )
+    ''');
 
-    // 【新增】預設建立一位 admin 帳號，方便我們測試
+    // 【新增】預設建立一位 admin 帳號
     await db.insert('users', {
       'account': 'admin',
       'password': 'admin123',
@@ -75,86 +96,63 @@ Future<void> _createTables(Database db) async {
       'age': '30',
       'bmi': '20.76',
       'fat': '15',
+      'gender': 'male',
+      'bmr': '1502.5',
     });
   }
 
-  //註冊用戶資料
+  // --- User 相關方法 ---
   Future<void> insertUser(Map<String, dynamic> data) async {
-    final database = await db;
-    await database.insert(
-      'users',
-      data,
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    final db = await instance.db;
+    await db.insert('users', data, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  // 驗證帳號密碼是否正確（登入用）
   Future<bool> validateUser(String account, String password) async {
-    final database = await db;
-    final result = await database.query(
-      'users',
-      where: 'account = ? AND password = ?',
-      whereArgs: [account, password],
-    );
+    final db = await instance.db;
+    final result = await db.query('users', where: 'account = ? AND password = ?', whereArgs: [account, password]);
     return result.isNotEmpty;
   }
 
-  // 儲存一筆訓練紀錄
-  Future<void> insertWorkoutLog(WorkoutLog log) async {
-    final database = await db;
-    await database.insert('workout_logs', log.toMap());
-  }
-
-  //  取得所有訓練紀錄
-  Future<List<WorkoutLog>> getWorkoutLogs() async {
-    final database = await db;
-    final List<Map<String, dynamic>> maps = await database.query(
-      'workout_logs',
-      orderBy: 'completedAt DESC',
-    );
-    return List.generate(maps.length, (i) {
-      return WorkoutLog.fromMap(maps[i]);
-    });
-  }
-
-  // --- 【新增】根據帳號取得使用者資料 ---
-  // 這個方法會回傳一個 User 物件，如果找不到就回傳 null
- Future<User?> getUserByAccount(String account) async {
-    final database = await db;
-    final List<Map<String, dynamic>> maps = await database.query(
-      'users',
-      where: 'account = ?',
-      whereArgs: [account],
-      limit: 1,
-    );
-
+  Future<User?> getUserByAccount(String account) async {
+    final db = await instance.db;
+    final List<Map<String, dynamic>> maps = await db.query('users', where: 'account = ?', whereArgs: [account], limit: 1);
     if (maps.isNotEmpty) {
       return User.fromMap(maps.first);
     }
     return null;
   } 
 
-  // --- 【新增】更新使用者資料 ---
   Future<int> updateUser(User user) async {
-    final database = await db;
-    // `update` 方法會回傳被更新的資料筆數
-    return await database.update(
-      'users',
-      user.toMap(), // 將 User 物件轉換成資料庫格式
-      where: 'id = ?',
-      whereArgs: [user.id],
-    );
+    final db = await instance.db;
+    return await db.update('users', user.toMap(), where: 'id = ?', whereArgs: [user.id]);
   }
 
+  // --- WorkoutLog 相關方法 ---
+  Future<void> insertWorkoutLog(WorkoutLog log) async {
+    final db = await instance.db;
+    await db.insert('workout_logs', log.toMap());
+  }
 
+  Future<List<WorkoutLog>> getWorkoutLogs() async {
+    final db = await instance.db;
+    final List<Map<String, dynamic>> maps = await db.query('workout_logs', orderBy: 'completedAt DESC');
+    return List.generate(maps.length, (i) => WorkoutLog.fromMap(maps[i]));
+  }
 
-// --- 【新增】刪除所有訓練紀錄 ---
-  // 這個方法會回傳被刪除的資料筆數
   Future<int> deleteAllWorkoutLogs() async {
-    final database = await db;
-    // `db.delete()` 是 sqflite 套件提供的標準刪除方法。
-    // 我們傳入資料表的名稱 'workout_logs'，因為沒有指定 `where` 條件，
-    // 所以它會刪除這個資料表中的「所有」資料。
-    return await database.delete('workout_logs');
+    final db = await instance.db;
+    return await db.delete('workout_logs');
+  }
+
+  // --- WeightLog 相關方法 (新增) ---
+  Future<void> insertWeightLog(WeightLog log) async {
+    final db = await instance.db;
+    await db.insert('weight_logs', log.toMap());
+  }
+
+  Future<List<WeightLog>> getWeightLogs() async {
+    final db = await instance.db;
+    final List<Map<String, dynamic>> maps = await db.query('weight_logs', orderBy: 'createdAt DESC');
+    return List.generate(maps.length, (i) => WeightLog.fromMap(maps[i]));
   }
 }
