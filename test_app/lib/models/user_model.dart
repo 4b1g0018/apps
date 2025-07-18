@@ -1,6 +1,6 @@
 // 定義「使用者」的資料結構
 
-// 建立 User 類別，來標準化「一位使用者」的資料結構。
+enum FitnessLevel { light, medium, heavy }
 class User {
   final int? id;
   final String account;
@@ -11,6 +11,7 @@ class User {
   final String bmi;
   final String? fat; 
   final String? goalWeight;
+  final String? fitnessLevel;
 
   // 新增欄位
   final String? gender; // 性別，'male' 或 'female'
@@ -29,7 +30,7 @@ class User {
     this.gender, 
     this.bmr,
     this.goalWeight,
-    
+    this.fitnessLevel,
   });
 
   // 將 User 物件轉換成 Map，方便寫入資料庫
@@ -47,6 +48,7 @@ class User {
       'gender': gender,
       'bmr': bmr,
       'goalWeight': goalWeight,
+      'fitnessLevel': fitnessLevel, 
     };
   }
 
@@ -65,6 +67,7 @@ class User {
       gender: map['gender'],
       bmr: map['bmr'],
       goalWeight: map['goalWeight'],  
+      fitnessLevel: map['fitnessLevel'],
     );
   }
 
@@ -82,6 +85,7 @@ class User {
     String? gender,
     String? bmr,
     String? goalWeight,
+    String? fitnessLevel, 
   }) {
     return User(
       id: id ?? this.id,
@@ -96,6 +100,7 @@ class User {
       gender: gender ?? this.gender,
       bmr: bmr ?? this.bmr,
       goalWeight: goalWeight ?? this.goalWeight,
+      fitnessLevel: fitnessLevel ?? this.fitnessLevel, 
     );
   }
 }

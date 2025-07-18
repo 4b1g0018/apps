@@ -18,8 +18,8 @@ extension BodyPartExtension on BodyPart {
       case BodyPart.legs: return '腿';
       case BodyPart.abs: return '腹';
       case BodyPart.shoulders: return '肩';
-      case BodyPart.biceps: return '二頭';
-      case BodyPart.triceps: return '三頭';
+      case BodyPart.biceps: return '二頭肌';
+      case BodyPart.triceps: return '三頭肌';
       case BodyPart.back: return '背';
     }
   }

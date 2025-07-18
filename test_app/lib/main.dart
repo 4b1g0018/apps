@@ -140,7 +140,7 @@ class _MainAppShellState extends State<MainAppShell> {
       DashboardHomePage(account: widget.account),
       const SelectPartPage(),
       WorkoutHistoryPage(account: widget.account), 
-      const RecommendationsPage(),
+      RecommendationsPage(account: widget.account),
       SettingsPage(account: widget.account),
     ];
   }

@@ -3,7 +3,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' show join;
 
-// 【修正】只導入需要的 model
+
 import '../models/workout_log_model.dart';
 import '../models/user_model.dart';
 import '../models/weight_log_model.dart';
@@ -23,12 +23,12 @@ class DatabaseHelper {
     final path = join(dbPath, 'data.db');
     return await openDatabase(
       path,
-      version: 5, 
+      version: 6, 
       onCreate: (db, version) async {
         return await _createTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        // 舊有的升級邏輯保留
+       
         if (oldVersion < 2) {
           await db.execute('''
             CREATE TABLE workout_logs (
@@ -43,7 +43,7 @@ class DatabaseHelper {
         if (oldVersion == 2) {
       await db.execute('ALTER TABLE workout_logs ADD COLUMN bodyPart TEXT');
     }
-        // 【新增】新的升級邏輯：當從舊版本升到 4 時，建立 weight_logs 資料表
+  
        if (oldVersion < 4) {
       await db.execute('''
         CREATE TABLE weight_logs(
@@ -55,6 +55,9 @@ class DatabaseHelper {
         }
         if (oldVersion < 5) {
           await db.execute('ALTER TABLE users ADD COLUMN goalWeight TEXT');
+          }
+        if (oldVersion < 6) {
+        await db.execute('ALTER TABLE users ADD COLUMN fitnessLevel TEXT');
         }
       },
     );
@@ -70,6 +73,7 @@ class DatabaseHelper {
         weight TEXT, age TEXT, bmi TEXT, fat TEXT,
         gender TEXT, bmr TEXT
         goalWeight TEXT 
+        fitnessLevel TEXT 
       )
     ''');
     // 建立 workout_logs 資料表

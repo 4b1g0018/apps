@@ -1,9 +1,9 @@
 // 使用者登入與註冊頁面。
 
-
 import 'package:flutter/material.dart';
 import '../services/database_helper.dart';
 import '../main.dart';
+import './fitness_level_page.dart'; // 【確認】導入新頁面
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -21,10 +21,24 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _fat = TextEditingController();
   final TextEditingController _bmiController = TextEditingController();
   final TextEditingController _bmrController = TextEditingController();
-  final List<bool> _genderSelection = [true, false]; 
+  final List<bool> _genderSelection = [true, false];
   bool isLogin = true;
   bool _isPasswordVisible = false;
-  
+
+  @override
+  void dispose() {
+    // 釋放所有控制器，是個好習慣
+    _account.dispose();
+    _password.dispose();
+    _height.dispose();
+    _weight.dispose();
+    _age.dispose();
+    _fat.dispose();
+    _bmiController.dispose();
+    _bmrController.dispose();
+    super.dispose();
+  }
+
   void _toggleMode() => setState(() => isLogin = !isLogin);
 
   void _updateBMI() {
@@ -57,33 +71,47 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // 【修正】這是完整且正確的 _handleSubmit 方法
   void _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
     final acc = _account.text.trim();
     final pwd = _password.text.trim();
 
     if (isLogin) {
-      final valid = await DatabaseHelper.instance.validateUser(acc, pwd);
+      final user = await DatabaseHelper.instance.getUserByAccount(acc);
       if (!mounted) return;
-      if (valid) {
-        Navigator.pushReplacement(
-        context,
-          MaterialPageRoute(builder: (_) => MainAppShell(account: acc)),
+
+      if (user != null && user.password == pwd) {
+        // 檢查是否已設定強度
+        if (user.fitnessLevel == null || user.fitnessLevel!.isEmpty) {
+          // 如果未設定，跳轉到強度選擇頁
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => FitnessLevelPage(account: acc)),
           );
+        } else {
+          // 如果已設定，直接進入主頁
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => MainAppShell(account: acc)),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('帳號或密碼錯誤')));
       }
     } else {
+      // 註冊流程
       final h = double.tryParse(_height.text);
       final w = double.tryParse(_weight.text);
-      final bmi = (h != null && w != null && h > 0)
-          ? (w / ((h / 100) * (h / 100))).toStringAsFixed(2)
-          : '';
-
-       final a = int.tryParse(_age.text);
+      final a = int.tryParse(_age.text);
       final gender = _genderSelection[0] ? 'male' : 'female';
+      String bmi = '';
       String bmr = '';
+
+      if (h != null && w != null && h > 0) {
+        bmi = (w / ((h / 100) * (h / 100))).toStringAsFixed(2);
+      }
       if (h != null && w != null && a != null && h > 0 && w > 0 && a > 0) {
         double bmrValue = 0;
         if (gender == 'male') {
@@ -93,19 +121,14 @@ class _LoginPageState extends State<LoginPage> {
         }
         bmr = bmrValue.toStringAsFixed(2);
       }
-      if (bmi == '') {
+      
+      if (bmi.isEmpty || bmr.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('BMI 計算失敗，請輸入正確的身高與體重')),
+          const SnackBar(content: Text('計算失敗，請輸入正確的身高、體重與年齡')),
         );
         return;
       }
-
-        if (bmr == '') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('BMR 計算失敗，請輸入正確的身高、體重與年齡')),
-        );
-        return;
-      }
+      
       await DatabaseHelper.instance.insertUser({
         'account': acc,
         'password': pwd,
@@ -117,10 +140,14 @@ class _LoginPageState extends State<LoginPage> {
         'gender': gender,
         'bmr': bmr,
       });
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('註冊成功，請登入')));
-      setState(() => isLogin = true);
+      
+      // 註冊成功後，直接跳轉到強度選擇頁面
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => FitnessLevelPage(account: acc)),
+      );
     }
   }
 
@@ -137,13 +164,17 @@ class _LoginPageState extends State<LoginPage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 60),
-                  const Icon(Icons.fitness_center, size: 80, color: Color(0xFF007AFF)),
+                  const Icon(Icons.fitness_center,
+                      size: 80, color: Color(0xFF0A84FF)),
                   const SizedBox(height: 20),
-                  Text(isLogin ? '歡迎回來！' : '建立您的帳戶', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                  Text(isLogin ? '歡迎回來！' : '建立您的帳戶',
+                      style: const TextStyle(
+                          fontSize: 28, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 10),
-                  Text(isLogin ? '登入以繼續您的訓練' : '填寫資料以開始個人化體驗', style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
+                  Text(isLogin ? '登入以繼續您的訓練' : '填寫資料以開始個人化體驗',
+                      style:
+                          TextStyle(fontSize: 16, color: Colors.grey.shade600)),
                   const SizedBox(height: 40),
-
                   TextFormField(
                     controller: _account,
                     decoration: const InputDecoration(labelText: '帳號'),
@@ -152,23 +183,16 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _password,
-                    // `obscureText` 這個屬性用來決定是否要將文字顯示為星號或圓點
-                    // 它的值，現在由我們新增的 `_isPasswordVisible` 狀態來控制。
-                    // `!` 是「非」的意思，所以 `!_isPasswordVisible` 代表：當密碼「不可見」時，這個值為 true (隱藏文字)。
                     obscureText: !_isPasswordVisible,
                     decoration: InputDecoration(
                       labelText: '密碼',
-                      // `suffixIcon` 可以在輸入框的「最右邊」加上一個圖示按鈕
                       suffixIcon: IconButton(
-                        // 我們根據 `_isPasswordVisible` 的狀態，來決定要顯示「眼睛打開」還是「眼睛關閉」的圖示
                         icon: Icon(
                           _isPasswordVisible
-                              ? Icons.visibility_off_outlined // 如果可見，顯示「關眼」圖示
-                              : Icons.visibility_outlined,    // 如果不可見，顯示「開眼」圖示
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
                         ),
-                        // 當使用者點擊這個圖示按鈕時
                         onPressed: () {
-                          // 我們呼叫 setState，並將 `_isPasswordVisible` 的狀態反轉
                           setState(() {
                             _isPasswordVisible = !_isPasswordVisible;
                           });
@@ -177,9 +201,8 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     validator: (v) => v!.isEmpty ? '請輸入密碼' : null,
                   ),
-                  
                   if (!isLogin) ...[
-                         const SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     ToggleButtons(
                       isSelected: _genderSelection,
                       onPressed: (int index) {
@@ -187,14 +210,17 @@ class _LoginPageState extends State<LoginPage> {
                           for (int i = 0; i < _genderSelection.length; i++) {
                             _genderSelection[i] = i == index;
                           }
-                          // 性別變動後，也要重新計算 BMR
                           _updateBMR();
                         });
                       },
                       borderRadius: BorderRadius.circular(8.0),
-                      constraints: BoxConstraints.expand(width: (MediaQuery.of(context).size.width - 52) / 2, height: 40),
-                       fillColor: _genderSelection[1] ? Colors.red.shade400 : Colors.blue.shade400,
-                       selectedColor: Colors.white,
+                      constraints: BoxConstraints.expand(
+                          width: (MediaQuery.of(context).size.width - 52) / 2,
+                          height: 40),
+                      fillColor: _genderSelection[1]
+                          ? Colors.red.shade400
+                          : Colors.blue.shade400,
+                      selectedColor: Colors.white,
                       children: const [Text('男性'), Text('女性')],
                     ),
                     const SizedBox(height: 16),
@@ -231,33 +257,44 @@ class _LoginPageState extends State<LoginPage> {
                     TextFormField(
                       readOnly: true,
                       controller: _bmiController,
-                      decoration: const InputDecoration(labelText: 'BMI (自動計算)'),
+                      decoration:
+                          const InputDecoration(labelText: 'BMI (自動計算)'),
                     ),
-                     const SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     TextFormField(
                       readOnly: true,
                       controller: _bmrController,
-                      decoration: const InputDecoration(labelText: 'BMR (自動計算)'),
+                      decoration:
+                          const InputDecoration(labelText: 'BMR (自動計算)'),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _fat,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: '體脂率 (%) (選填)'),
+                      decoration:
+                          const InputDecoration(labelText: '體脂率 (%) (選填)'),
                     ),
                   ],
                   const SizedBox(height: 30),
-                  
-                  SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _handleSubmit, child: Text(isLogin ? '登入' : '註冊'))),
+                  SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                          onPressed: _handleSubmit,
+                          child: Text(isLogin ? '登入' : '註冊'))),
                   const SizedBox(height: 20),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(isLogin ? '還沒有帳號？' : '已經有帳號？', style: TextStyle(color: Colors.grey.shade600)),
-                      GestureDetector(onTap: _toggleMode, child: Text(isLogin ? ' 馬上註冊' : ' 前往登入', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF007AFF)))),
+                      Text(isLogin ? '還沒有帳號？' : '已經有帳號？',
+                          style: TextStyle(color: Colors.grey.shade600)),
+                      GestureDetector(
+                          onTap: _toggleMode,
+                          child: Text(isLogin ? ' 馬上註冊' : ' 前往登入',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0A84FF)))),
                     ],
                   ),
-                  
                   const SizedBox(height: 40),
                 ],
               ),

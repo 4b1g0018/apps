@@ -5,7 +5,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../models/weight_log_model.dart';
-import '../models/workout_log_model.dart';
 import '../services/database_helper.dart';
 import './weight_trend_page.dart';
 import '../models/exercise_model.dart';

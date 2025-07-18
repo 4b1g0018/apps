@@ -10,7 +10,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/notification_service.dart';
-import '../models/workout_log_model.dart';
 import '../services/database_helper.dart';
 import './profile_page.dart';
 import './device_connection_page.dart';
