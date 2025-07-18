@@ -1,5 +1,4 @@
-// lib/models/exercise_model.dart
-
+// 定義「運動項目」與「肌群部位」的資料結構。
 // BodyPart 枚舉
 enum BodyPart {
   chest,
@@ -38,7 +37,7 @@ extension BodyPartExtension on BodyPart {
   }
 }
 
-// 【新增】請確保這個 Exercise 類別的定義存在於檔案中
+
 class Exercise {
   final String name;
   final String description;

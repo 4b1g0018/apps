@@ -1,4 +1,4 @@
-// lib/pages/select_exercise_page.dart
+// 「開始訓練」流程的第二步：選擇訓練動作。
 
 import 'package:flutter/material.dart';
 import '../models/exercise_model.dart';

@@ -1,4 +1,4 @@
-// lib/pages/weight_trend_page.dart
+// 顯示體重與 BMI 變化的詳細圖表頁面。
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';

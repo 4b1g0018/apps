@@ -1,4 +1,4 @@
-// lib/services/mock_data_service.dart
+// 提供開發與測試用的模擬假資料。
 
 // 引入我們定義好的資料模型
 import '../models/exercise_model.dart';

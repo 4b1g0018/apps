@@ -1,4 +1,4 @@
-// lib/services/database_helper.dart
+// 處理所有 SQLite 資料庫的存取操作 
 
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' show join;

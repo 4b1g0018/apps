@@ -1,4 +1,4 @@
-// lib/pages/profile_page.dart
+// 使用者個人資料的檢視與修改頁面。
 
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';

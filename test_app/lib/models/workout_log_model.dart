@@ -1,4 +1,4 @@
-// lib/models/workout_log_model.dart
+// 定義「單筆訓練紀錄」的資料結構。
 
 import './exercise_model.dart';
 

@@ -1,4 +1,4 @@
-// lib/pages/training_summary_page.dart
+// 單次訓練完成後的成果摘要頁面。
 
 import 'package:flutter/material.dart';
 // 引入我們剛剛建立的訓練紀錄模型

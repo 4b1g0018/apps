@@ -1,4 +1,4 @@
-// lib/services/bluetooth_service.dart
+// 處理與藍牙硬體設備的連線服務
 
 import 'dart:async';
 

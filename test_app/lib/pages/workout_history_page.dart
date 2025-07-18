@@ -1,4 +1,4 @@
-// lib/pages/workout_history_page.dart
+// 訓練日曆，用以查詢過去的訓練紀錄。
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -17,7 +17,7 @@ class WorkoutHistoryPage extends StatefulWidget {
 }
 
 class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
-  // 【修改】我們不再需要 _selectedLogs，因為它會在 build 方法中即時產生
+  // 我們不再需要 _selectedLogs，因為它會在 build 方法中即時產生
   late Future<List<WorkoutLog>> _logsFuture;
   
   DateTime _focusedDay = DateTime.now();
@@ -27,7 +27,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    // 【修改】initState 只負責觸發資料庫讀取，不做其他處理
+    // initState 只負責觸發資料庫讀取，不做其他處理
     _logsFuture = DatabaseHelper.instance.getWorkoutLogs();
   }
   
@@ -66,7 +66,7 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             return Center(child: Text('讀取資料時發生錯誤: ${snapshot.error}'));
           }
 
-          // 【修改】我們在 build 方法中才處理所有資料
+          // 我們在 build 方法中才處理所有資料
           final allLogs = snapshot.data ?? [];
           final selectedLogs = _getLogsForDay(_selectedDay!, allLogs);
 

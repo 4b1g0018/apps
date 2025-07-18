@@ -1,4 +1,4 @@
-// lib/pages/recommendations_page.dart
+// 建議課程頁面
 
 import 'package:flutter/material.dart';
 

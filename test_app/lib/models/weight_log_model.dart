@@ -1,4 +1,4 @@
-// lib/models/weight_log_model.dart
+// 定義「單筆體重紀錄」的資料結構。
 
 class WeightLog {
   final int? id;

@@ -1,4 +1,4 @@
-// lib/models/user_model.dart
+// 定義「使用者」的資料結構
 
 // 建立 User 類別，來標準化「一位使用者」的資料結構。
 class User {

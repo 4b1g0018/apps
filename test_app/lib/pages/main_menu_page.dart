@@ -1,4 +1,4 @@
-// lib/pages/main_menu_page.dart
+// 舊版的主選單頁面
 
 import 'package:flutter/material.dart';
 import './select_part_page.dart';

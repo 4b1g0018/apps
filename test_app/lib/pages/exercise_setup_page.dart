@@ -1,4 +1,4 @@
-// lib/pages/exercise_setup_page.dart
+// 「開始訓練」流程的第三步：設定訓練參數（組數、休息時間）。
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';

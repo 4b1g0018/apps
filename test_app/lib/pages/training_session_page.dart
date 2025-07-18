@@ -1,4 +1,4 @@
-// lib/pages/training_session_page.dart
+// 訓練進行中的計時與計組頁面
 
 // 引入 dart:async 來使用 Timer (計時器)
 import 'dart:async';

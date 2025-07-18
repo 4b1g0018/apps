@@ -1,4 +1,4 @@
-// lib/pages/login_page.dart
+// 使用者登入與註冊頁面。
 
 
 import 'package:flutter/material.dart';

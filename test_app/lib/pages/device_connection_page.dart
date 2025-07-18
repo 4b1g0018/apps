@@ -1,4 +1,4 @@
-// lib/pages/device_connection_page.dart
+// 藍牙設備的掃描與連線頁面。
 
 import 'package:flutter/material.dart';
 // 我們不再需要引入 flutter_blue_plus，因為所有的互動都透過我們自己的 service

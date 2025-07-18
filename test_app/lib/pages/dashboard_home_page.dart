@@ -1,3 +1,5 @@
+// 登入後的主儀表板，顯示各項數據摘要卡片。
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 

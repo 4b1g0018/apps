@@ -1,20 +1,21 @@
-// lib/main.dart
+// App 的主入口點、主題設定、以及導覽列框架。
 
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import './services/database_helper.dart';
 import './pages/login_page.dart';
-// 【新增】導入所有我們需要的主要頁面
+
 import './pages/dashboard_home_page.dart';
 import './pages/select_part_page.dart';
 import './pages/workout_history_page.dart';
 import './pages/recommendations_page.dart';
 import './pages/settings_page.dart';
-
+import './services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+   await NotificationService.instance.init();
   await initializeDateFormatting();
   await DatabaseHelper.instance.initDB();
   

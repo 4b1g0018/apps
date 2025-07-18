@@ -1,0 +1,89 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_native_timezone/flutter_native_timezone.dart';
+
+class NotificationService {
+  static final NotificationService instance = NotificationService._internal();
+  NotificationService._internal();
+
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  Future<void> init() async {
+    tz.initializeTimeZones();
+    final String localTimeZone = await FlutterNativeTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(localTimeZone));
+
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    final DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    final InitializationSettings settings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _notificationsPlugin.initialize(settings);
+
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        _notificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidImplementation?.requestNotificationsPermission();
+  }
+
+  // 【修改】這個方法現在是我們正式使用的版本
+  Future<void> scheduleDailyReminder({
+    required int id,
+    required String title,
+    required String body,
+    required int hour,
+    required int minute,
+  }) async {
+    await _notificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      _nextInstanceOfTime(hour, minute), // 計算下一次提醒時間
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'weight_reminder_channel',
+          '體重提醒',
+          channelDescription: '週期性的體重記錄提醒',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      // 這個設定會讓通知在指定時間「每日」重複
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+  }
+
+  Future<void> cancelAllNotifications() async {
+    await _notificationsPlugin.cancelAll();
+  }
+
+  tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+}
