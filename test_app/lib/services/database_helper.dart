@@ -23,7 +23,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'data.db');
     return await openDatabase(
       path,
-      version: 4, // 【修改】版本號提升至 4
+      version: 5, 
       onCreate: (db, version) async {
         return await _createTables(db);
       },
@@ -53,6 +53,9 @@ class DatabaseHelper {
             )
           ''');
         }
+        if (oldVersion < 5) {
+          await db.execute('ALTER TABLE users ADD COLUMN goalWeight TEXT');
+        }
       },
     );
   }
@@ -66,6 +69,7 @@ class DatabaseHelper {
         account TEXT UNIQUE, password TEXT, height TEXT,
         weight TEXT, age TEXT, bmi TEXT, fat TEXT,
         gender TEXT, bmr TEXT
+        goalWeight TEXT 
       )
     ''');
     // 建立 workout_logs 資料表

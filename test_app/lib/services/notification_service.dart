@@ -1,3 +1,5 @@
+// lib/services/notification_service.dart
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -37,7 +39,6 @@ class NotificationService {
     await androidImplementation?.requestNotificationsPermission();
   }
 
-  // 【修改】這個方法現在是我們正式使用的版本
   Future<void> scheduleDailyReminder({
     required int id,
     required String title,
@@ -49,7 +50,7 @@ class NotificationService {
       id,
       title,
       body,
-      _nextInstanceOfTime(hour, minute), // 計算下一次提醒時間
+      _nextInstanceOfTime(hour, minute),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'weight_reminder_channel',
@@ -67,7 +68,6 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      // 這個設定會讓通知在指定時間「每日」重複
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }

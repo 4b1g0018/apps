@@ -21,6 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _fatController = TextEditingController();
   final TextEditingController _bmiController = TextEditingController();
   final TextEditingController _bmrController = TextEditingController(); 
+  final TextEditingController _goalWeightController = TextEditingController();
   
   @override
   void initState() { super.initState(); _loadUserData(); }
@@ -36,6 +37,7 @@ class _ProfilePageState extends State<ProfilePage> {
         _fatController.text = user.fat ?? '';
         _bmiController.text = user.bmi;
         _bmrController.text = user.bmr ?? '';
+        _goalWeightController.text = user.goalWeight ?? '';
       });
     }
   }
@@ -80,6 +82,7 @@ class _ProfilePageState extends State<ProfilePage> {
         fat: _fatController.text,
         bmi: _bmiController.text,
         bmr: _bmrController.text,
+        goalWeight: _goalWeightController.text,
       );
       await DatabaseHelper.instance.updateUser(updatedUser);
       if (!mounted) return;
@@ -115,6 +118,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     controller: _weightController,
                     onChanged: (_) => _calculateMetrics(), 
                     validator: (v) => v!.isEmpty ? '此欄位不得為空' : null,
+                  ),
+                  const SizedBox(height: 24),
+                   _buildLabeledTextField(
+                    label: '目標體重 (kg)',
+                    controller: _goalWeightController,
                   ),
                   const SizedBox(height: 24),
                   _buildLabeledTextField(

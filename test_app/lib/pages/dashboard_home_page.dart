@@ -1,12 +1,14 @@
-// 登入後的主儀表板，顯示各項數據摘要卡片。
+// lib/pages/dashboard_home_page.dart
 
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
-
+import '../models/weight_log_model.dart';
+import '../models/workout_log_model.dart';
 import '../services/database_helper.dart';
 import './weight_trend_page.dart';
-import '../models/exercise_model.dart'; // 【新增這
+import '../models/exercise_model.dart';
 
 class DashboardHomePage extends StatefulWidget {
   final String account;
@@ -24,18 +26,15 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
   Map<BodyPart, double> _bodyPartDistribution = {};
 
   // 為不同肌群定義顏色
-// in lib/pages/dashboard_home_page.dart -> _DashboardHomePageState
-
-// 【還原】為不同肌群定義顏色，只保留您原有的項目
-final Map<BodyPart, Color> _bodyPartColors = {
-  BodyPart.chest: Colors.blue.shade400,
-  BodyPart.back: Colors.green.shade400,
-  BodyPart.legs: Colors.orange.shade400,
-  BodyPart.shoulders: Colors.purple.shade400,
-  BodyPart.biceps: Colors.red.shade300,  // 為二頭和三頭也加上顏色
-  BodyPart.triceps: Colors.red.shade500,
-  BodyPart.abs: Colors.cyan.shade400,
-};
+  final Map<BodyPart, Color> _bodyPartColors = {
+    BodyPart.chest: Colors.blue.shade400,
+    BodyPart.back: Colors.green.shade400,
+    BodyPart.legs: Colors.orange.shade400,
+    BodyPart.shoulders: Colors.purple.shade400,
+    BodyPart.biceps: Colors.red.shade300,
+    BodyPart.triceps: Colors.red.shade500,
+    BodyPart.abs: Colors.cyan.shade400,
+  };
 
   @override
   void initState() {
@@ -107,6 +106,17 @@ final Map<BodyPart, Color> _bodyPartColors = {
       _workoutsThisWeek = thisWeekLogs.length;
       _bodyPartDistribution = distribution;
     });
+  }
+
+  Future<void> _showAddWeightDialog() async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) => _AddWeightDialog(
+        onSave: () {
+          _loadSummaryData();
+        },
+      ),
+    );
   }
 
   @override
@@ -211,53 +221,170 @@ final Map<BodyPart, Color> _bodyPartColors = {
     final changeText = changeValue != null ? changeValue.abs().toStringAsFixed(1) : '-';
 
     return Card(
-      child: InkWell(
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => WeightTrendPage(account: widget.account)),
-          );
-          _loadSummaryData();
-        },
-        borderRadius: BorderRadius.circular(12.0),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('體重', style: TextStyle(fontSize: 16, color: Colors.grey)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => WeightTrendPage(account: widget.account)),
+                  );
+                  _loadSummaryData();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _latestWeight?.toStringAsFixed(1) ?? '--',
-                        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                      const Text('體重', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                _latestWeight?.toStringAsFixed(1) ?? '--',
+                                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 4),
+                              const Text('kg', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Icon(changeIcon, color: changeColor, size: 20),
+                              const SizedBox(width: 4),
+                              Text(
+                                changeText,
+                                style: TextStyle(color: changeColor, fontSize: 20, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 4),
-                      const Text('kg', style: TextStyle(color: Colors.grey)),
                     ],
                   ),
-                  Row(
-                    children: [
-                      Icon(changeIcon, color: changeColor, size: 20),
-                      const SizedBox(width: 4),
-                      Text(
-                        changeText,
-                        style: TextStyle(color: changeColor, fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
-            ],
-          ),
+            ),
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+               color: Theme.of(context).colorScheme.primary.withAlpha(50),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
+                onPressed: _showAddWeightDialog,
+                tooltip: '記錄體重',
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+}
+
+class _AddWeightDialog extends StatefulWidget {
+  final VoidCallback onSave;
+  const _AddWeightDialog({required this.onSave});
+
+  @override
+  State<_AddWeightDialog> createState() => _AddWeightDialogState();
+}
+
+class _AddWeightDialogState extends State<_AddWeightDialog> {
+  final _weightController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  DateTime _selectedDate = DateTime.now();
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isToday = DateUtils.isSameDay(DateTime.now(), _selectedDate);
+    final formattedDate =
+        isToday ? '今天' : DateFormat('yyyy/MM/dd').format(_selectedDate);
+
+    return AlertDialog(
+      title: const Text('記錄體重'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _weightController,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: '體重 (kg)',
+                suffixText: 'kg',
+              ),
+              validator: (v) => (v == null || v.isEmpty)
+                  ? '請輸入體重'
+                  : (double.tryParse(v) == null ? '請輸入有效的數字' : null),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.calendar_today),
+              title: const Text('日期'),
+              trailing: Text(formattedDate),
+              onTap: () => _selectDate(context),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ],
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          child: const Text('取消'),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        TextButton(
+          child: const Text('儲存'),
+          onPressed: () async {
+            if (_formKey.currentState!.validate()) {
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+
+              final weight = double.parse(_weightController.text);
+              final newLog = WeightLog(
+                weight: weight,
+                createdAt: _selectedDate,
+              );
+              await DatabaseHelper.instance.insertWeightLog(newLog);
+
+              if (!mounted) return;
+              navigator.pop();
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('體重紀錄已儲存！'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+              widget.onSave();
+            }
+          },
+        ),
+      ],
     );
   }
 }

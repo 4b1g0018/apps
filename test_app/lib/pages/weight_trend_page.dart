@@ -8,6 +8,8 @@ import '../models/weight_log_model.dart';
 import '../models/user_model.dart';
 import '../services/database_helper.dart';
 
+// 【修正】移除了多餘的 exercise_model.dart 導入
+
 class TrendPageData {
   final User? user;
   final List<WeightLog> logs;
@@ -28,6 +30,7 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
   late Future<TrendPageData> _pageDataFuture;
   TimeRange _selectedRange = TimeRange.month;
   final List<bool> _isSelected = [false, true, false, false];
+  bool _showBmi = false;
 
   @override
   void initState() {
@@ -61,65 +64,6 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
     return logs.where((log) => log.createdAt.isAfter(cutoffDate)).toList();
   }
 
-  Future<void> _showAddWeightDialog() async {
-    final weightController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        // 【排版修正】將 AlertDialog 的內容展開，方便閱讀
-        return AlertDialog(
-          title: const Text('記錄今日體重'),
-          content: Form(
-            key: formKey,
-            child: TextFormField(
-              controller: weightController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: '體重 (kg)',
-                suffixText: 'kg',
-              ),
-              validator: (v) => (v == null || v.isEmpty)
-                  ? '請輸入體重'
-                  : (double.tryParse(v) == null ? '請輸入有效的數字' : null),
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('取消'),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            TextButton(
-              child: const Text('儲存'),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  final navigator = Navigator.of(dialogContext);
-                  final messenger = ScaffoldMessenger.of(context);
-                  final weight = double.parse(weightController.text);
-                  final newLog =
-                      WeightLog(weight: weight, createdAt: DateTime.now());
-                  await DatabaseHelper.instance.insertWeightLog(newLog);
-                  if (!mounted) return;
-                  navigator.pop();
-                  messenger.showSnackBar(
-                    const SnackBar(
-                      content: Text('體重紀錄已儲存！'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                  setState(() {
-                    _pageDataFuture = _loadPageData();
-                  });
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,8 +79,14 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
           if (snapshot.hasError) {
             return Center(child: Text('載入資料失敗: ${snapshot.error}'));
           }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('沒有資料'));
+          if (!snapshot.hasData || snapshot.data!.logs.isEmpty) {
+            return const Center(
+              child: Text(
+                '目前沒有體重紀錄',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            );
           }
 
           final pageData = snapshot.data!;
@@ -153,6 +103,8 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
 
           final user = pageData.user;
           final double userHeight = double.tryParse(user?.height ?? '0') ?? 0;
+          final double? goalWeight = double.tryParse(user?.goalWeight ?? '');
+
           final weightSpots = filteredLogs.reversed
               .map((log) => FlSpot(
                   log.createdAt.millisecondsSinceEpoch.toDouble(), log.weight))
@@ -166,6 +118,20 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
                   log.createdAt.millisecondsSinceEpoch.toDouble(), bmi);
             }).toList();
           }
+          
+          final List<double> allYValues = [...weightSpots.map((s) => s.y)];
+          if (_showBmi) {
+            allYValues.addAll(bmiSpots.map((s) => s.y));
+          }
+          final minY = allYValues.reduce((a, b) => a < b ? a : b);
+          final maxY = allYValues.reduce((a, b) => a > b ? a : b);
+          
+          final double bottomTitleInterval = switch (_selectedRange) {
+            TimeRange.week => const Duration(days: 2).inMilliseconds.toDouble(),
+            TimeRange.month => const Duration(days: 7).inMilliseconds.toDouble(),
+            TimeRange.threeMonths => const Duration(days: 30).inMilliseconds.toDouble(),
+            TimeRange.year => const Duration(days: 90).inMilliseconds.toDouble(),
+          };
 
           return ListView(
             padding: const EdgeInsets.all(16.0),
@@ -184,27 +150,64 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
                   borderRadius: BorderRadius.circular(8.0),
                   constraints:
                       const BoxConstraints(minHeight: 40.0, minWidth: 80.0),
-                  children: const [
-                    Text('1週'),
-                    Text('1個月'),
-                    Text('3個月'),
-                    Text('1年'),
-                  ],
+                  children: const [ Text('1週'), Text('1個月'), Text('3個月'), Text('1年') ],
                 ),
               ),
               const SizedBox(height: 24),
-              _buildLegend(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildLegendItem(Theme.of(context).colorScheme.primary, '體重 (kg)'),
+                  if (_showBmi) ...[
+                    const SizedBox(width: 20),
+                    _buildLegendItem(Colors.orange.shade400, 'BMI'),
+                  ],
+                  const Spacer(),
+                  const Text('顯示 BMI'),
+                  const SizedBox(width: 4),
+                  Switch(
+                    value: _showBmi,
+                    onChanged: (value) {
+                      setState(() {
+                        _showBmi = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
               const SizedBox(height: 20),
               SizedBox(
                 height: 300,
                 child: LineChart(
                   LineChartData(
+                    minY: (minY / 10).floor() * 10 - 5,
+                    maxY: (maxY / 10).ceil() * 10 + 5,
                     lineBarsData: [
                       _buildLineBarData(
                           weightSpots, Theme.of(context).colorScheme.primary),
-                      if (bmiSpots.isNotEmpty)
+                      if (_showBmi && bmiSpots.isNotEmpty)
                         _buildLineBarData(bmiSpots, Colors.orange.shade400),
                     ],
+                    titlesData: FlTitlesData(
+                      leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          interval: 10,
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(sideTitles: _bottomTitles(bottomTitleInterval)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    gridData: const FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border.all(color: Colors.grey.shade700),
+                    ),
                     lineTouchData: LineTouchData(
                       touchTooltipData: LineTouchTooltipData(
                         getTooltipItems: (touchedSpots) {
@@ -216,78 +219,44 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
                             } else {
                               text = '體重: ${spot.y.toStringAsFixed(1)} kg';
                             }
-                            return LineTooltipItem(
-                              text,
-                              // ignore: prefer_const_constructors
-                              TextStyle(
-                                color: barData.color,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            );
+                            return LineTooltipItem(text, const TextStyle(fontWeight: FontWeight.bold));
                           }).toList();
                         },
                       ),
                     ),
-                    gridData: const FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                    ),
-                    titlesData: FlTitlesData(
-                      leftTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: true, reservedSize: 40),
-                      ),
-                      bottomTitles: AxisTitles(sideTitles: _bottomTitles),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    borderData: FlBorderData(
-                      show: true,
-                      border: Border.all(color: Colors.grey.shade700),                      
-                    ),
                     extraLinesData: ExtraLinesData(
-  horizontalLines: [
-    HorizontalLine(
-      y: 60.0,
-      // 【修改】使用 Color.fromARGB 來設定顏色與透明度
-      color: const Color.fromARGB(128, 255, 255, 255), // 約 50% 透明度的白色
-      strokeWidth: 2,
-      dashArray: [10, 6],
-      label: HorizontalLineLabel(
-        show: true,
-        alignment: Alignment.topLeft,
-        padding: const EdgeInsets.only(left: 5, top: 5),
-        // 【修改】這裡也可以變成 const 了，因為顏色現在是常數
-        style: const TextStyle(
-          color: Color.fromARGB(179, 255, 255, 255), // 約 70% 透明度的白色
-          fontWeight: FontWeight.bold,
-          fontSize: 12,
-        ),
-        labelResolver: (line) => '目標 ${line.y.toStringAsFixed(1)}kg',
-      ),
-    ),
-  ],
-),
-                  )
-  ),
-),
-
+                      horizontalLines: [
+                        if (goalWeight != null)
+                          HorizontalLine(
+                            y: goalWeight,
+                            color: const Color.fromARGB(128, 255, 255, 255),
+                            strokeWidth: 2,
+                            dashArray: [10, 6],
+                            label: HorizontalLineLabel(
+                              show: true,
+                              alignment: Alignment.topLeft,
+                              padding: const EdgeInsets.only(left: 5, top: 5),
+                              style: const TextStyle(
+                                color: Color.fromARGB(179, 255, 255, 255),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                              labelResolver: (line) => '目標 ${line.y.toStringAsFixed(1)}kg',
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
               const Text(
-                '提醒：由於體重和 BMI 的數值範圍不同，在同一個 Y 軸上，BMI 曲線的起伏看起來會比較平緩。您可以觸控圖表上的點來查看精確數值。',
+                '提醒：由於體重和 BMI 的數值範圍不同...',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddWeightDialog,
-        tooltip: '記錄體重',
-        child: const Icon(Icons.monitor_weight_outlined),
       ),
     );
   }
@@ -304,17 +273,6 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
     );
   }
 
-  Widget _buildLegend() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildLegendItem(Theme.of(context).colorScheme.primary, '體重 (kg)'),
-        const SizedBox(width: 20),
-        _buildLegendItem(Colors.orange.shade400, 'BMI'),
-      ],
-    );
-  }
-
   Widget _buildLegendItem(Color color, String text) {
     return Row(
       children: [
@@ -325,13 +283,23 @@ class _WeightTrendPageState extends State<WeightTrendPage> {
     );
   }
 
-  SideTitles get _bottomTitles => SideTitles(
+  SideTitles _bottomTitles(double interval) => SideTitles(
         showTitles: true,
+        reservedSize: 32,
+        interval: interval,
         getTitlesWidget: (value, meta) {
           final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
           return SideTitleWidget(
             axisSide: meta.axisSide,
-            child: Text(DateFormat('M/d').format(date)),
+            space: 4,
+            child: Text(
+              DateFormat('M/d').format(date),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
           );
         },
       );
