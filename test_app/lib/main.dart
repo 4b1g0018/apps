@@ -15,12 +15,12 @@ import './services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-   await NotificationService.instance.init();
   await initializeDateFormatting();
-  await DatabaseHelper.instance.initDB();
-  
+  await DatabaseHelper.instance.initDB(); 
+
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -106,20 +106,19 @@ class MyApp extends StatelessWidget {
 
         // 【新增】為底部導覽列加入符合您風格的主題設定
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
-          backgroundColor: const Color(0xFF1C1C1E), // 背景色與您的 scaffoldBackgroundColor 一致
-          selectedItemColor: primaryColor, // 選中項目的顏色用您的主題色
-          unselectedItemColor: Colors.grey.shade600, // 未選中項目的顏色
-          type: BottomNavigationBarType.fixed, // 確保項目都可見
+          backgroundColor: const Color(0xFF1C1C1E), 
+          selectedItemColor: primaryColor, 
+          unselectedItemColor: Colors.grey.shade600, // 未選中
+          type: BottomNavigationBarType.fixed, // 確保
         ),
       ),
-      // App 入口點不變
       home: const LoginPage(),
     );
   }
 }
 
 
-// 【新增】我們之前建立的 MainAppShell 導覽列框架，原封不動加到這裡
+// 導覽列框架
 class MainAppShell extends StatefulWidget {
   final String account;
   const MainAppShell({super.key, required this.account});
@@ -173,7 +172,7 @@ class _MainAppShellState extends State<MainAppShell> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today_outlined),
             activeIcon: Icon(Icons.calendar_today),
-            label: '日曆',
+            label: '訓練日曆',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.lightbulb_outline),

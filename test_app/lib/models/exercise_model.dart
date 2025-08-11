@@ -40,12 +40,12 @@ extension BodyPartExtension on BodyPart {
 
 class Exercise {
   final String name;
-  final String description;
-  final String imagePath;
+  final String? description;
+  final String? imagePath;
 
   const Exercise({
     required this.name,
-    required this.description,
-    required this.imagePath,
+    this.description,
+    this.imagePath,
   });
 }

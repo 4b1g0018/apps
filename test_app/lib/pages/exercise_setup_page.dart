@@ -7,7 +7,7 @@ import './training_session_page.dart';
 
 class ExerciseSetupPage extends StatefulWidget {
   final Exercise exercise;
-  final BodyPart bodyPart; // 接收從上一頁傳來的 bodyPart
+  final BodyPart bodyPart;
 
   const ExerciseSetupPage({
     super.key,
@@ -33,39 +33,33 @@ class _ExerciseSetupPageState extends State<ExerciseSetupPage> {
       body: ListView(
         padding: const EdgeInsets.all(24.0),
         children: [
-          Text(
-            '動作設定',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          Card(
-            clipBehavior: Clip.antiAlias,
-            child: Row(
-              children: [
-                Container(
-                  width: 120,
-                  height: 120,
-                  color: Colors.grey.shade200,
-                  child: Icon(Icons.image, color: Colors.grey.shade500, size: 50),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Text(
-                      widget.exercise.name,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
+          // 【新增】教學影片的預留空間
+          AspectRatio(
+            aspectRatio: 16 / 9, // 保持 16:9 的影片比例
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black, // 給一個黑色背景
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade800),
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.play_circle_outline, color: Colors.white54, size: 50),
+                  SizedBox(height: 8),
+                  Text('教學影片 (待加入)', style: TextStyle(color: Colors.white54)),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 32),
+
           Text(
             '訓練參數',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
+          // ... 以下的訓練參數設定 UI 維持不變 ...
           Row(
             children: [
               const Text('訓練組數：', style: TextStyle(fontSize: 16)),

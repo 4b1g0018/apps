@@ -1,114 +1,105 @@
-// 「開始訓練」流程的第二步：選擇訓練動作。
+// lib/pages/select_exercise_page.dart
 
 import 'package:flutter/material.dart';
 import '../models/exercise_model.dart';
 import '../services/mock_data_service.dart';
 import './exercise_setup_page.dart';
 
-// 這個頁面也是一個 StatelessWidget，因為它顯示的內容
-// 取決於從上一個頁面傳進來的 `bodyPart`。
-class SelectExercisePage extends StatelessWidget {
-  // 我們定義一個 `final` 的 `bodyPart` 變數，
-  // 用來接收從 `SelectPartPage` 傳過來的身體部位。
+class SelectExercisePage extends StatefulWidget {
   final BodyPart bodyPart;
-
-  // 在建構子中，我們要求必須要傳入 `bodyPart`。
   const SelectExercisePage({super.key, required this.bodyPart});
 
   @override
+  State<SelectExercisePage> createState() => _SelectExercisePageState();
+}
+
+class _SelectExercisePageState extends State<SelectExercisePage> {
+  late final List<Exercise> _predefinedExercises;
+
+  @override
+  void initState() {
+    super.initState();
+    _predefinedExercises = MockDataService.getExercisesForBodyPart(widget.bodyPart);
+  }
+
+  void _goToSetupPage(Exercise exercise) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExerciseSetupPage(
+          exercise: exercise,
+          bodyPart: widget.bodyPart,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAddCustomExerciseDialog() async {
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('新增自訂動作'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: nameController,
+              decoration: const InputDecoration(labelText: '動作名稱'),
+              validator: (v) => (v == null || v.trim().isEmpty) ? '請輸入動作名稱' : null,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  final customExercise = Exercise(name: nameController.text.trim());
+                  Navigator.of(context).pop();
+                  _goToSetupPage(customExercise);
+                }
+              },
+              child: const Text('確定'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  @override
   Widget build(BuildContext context) {
-    // 呼叫我們的假資料服務，根據傳入的 bodyPart 取得對應的動作列表。
-    final exercises = MockDataService.getExercisesFor(bodyPart);
+    final bodyPartName = widget.bodyPart.displayName;
 
     return Scaffold(
       appBar: AppBar(
-         // 標題會根據傳入的部位動態顯示
-        title: Text('${bodyPart.displayName} 訓練動作'),
-        centerTitle: true,
+        title: Text('選擇 $bodyPartName 動作'),
       ),
-      // `ListView.builder` 是一個用來建立列表視圖的 Widget，
-      // 效能很好，適合用來顯示長列表。
       body: ListView.builder(
-        // `itemCount` 告訴 ListView 總共有多少個項目。
-        itemCount: exercises.length,
-        // `itemBuilder` 負責建立列表中的每一個項目。
+        itemCount: _predefinedExercises.length,
         itemBuilder: (context, index) {
-          // 根據索引 `index` 取得單一的訓練動作物件。
-          final exercise = exercises[index];
-          // 回傳一個卡片來顯示動作資訊。
+          final exercise = _predefinedExercises[index];
           return Card(
-            // `margin` 設定卡片的外邊距，讓卡片之間有空隙。
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            // `clipBehavior` 避免子元件超出卡片的圓角範圍。
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: InkWell(
-              onTap: () {
-                // 導航到訓練設定頁面
-                  Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ExerciseSetupPage(
-                      exercise: exercise,
-                      bodyPart: bodyPart, // 把接力棒傳下去
-                    ),
-                  ),
-                );
-              },
-              // 這裡我們用 Row 佈局來實現「左圖右文」的效果。
-              child: Row(
-                children: [
-                  // --- 左邊的圖片 ---
-                  // 我們先用一個固定顏色的方塊來當作圖片的佔位符。
-                  // 如果你有圖片，可以換成 `Image.asset(exercise.imagePath)`
-                  Container(
-                    width: 100,
-                    height: 100,
-                    color: Colors.grey.shade300,
-                    // 你也可以加上一個 Icon 來示意
-                    child: Icon(Icons.image, color: Colors.grey.shade600, size: 40),
-                  ),
-                  
-                  // --- 右邊的文字 ---
-                  // `Expanded` 會讓它的子元件 (Column) 填滿 `Row` 中剩餘的所有空間。
-                  Expanded(
-                    // 我們用 `Padding` 來讓文字和圖片之間有一些內邊距。
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      // `Column` 讓標題和說明可以垂直排列。
-                      child: Column(
-                        // `crossAxisAlignment` 控制子元件在交叉軸（水平方向）上的對齊方式。
-                        // `CrossAxisAlignment.start` 表示向左對齊。
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 動作名稱 (標題)
-                          Text(
-                            exercise.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8), // 標題和說明的間距
-                          // 動作說明 (內文)
-                          Text(
-                            exercise.description,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: ListTile(
+              title: Text(exercise.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              // 【修正】現在 description 是可選的，我們可以直接使用它
+              subtitle: Text(exercise.description ?? ''), // 如果 description 是 null，就顯示空字串
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => _goToSetupPage(exercise),
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddCustomExerciseDialog,
+        tooltip: '新增自訂動作',
+        child: const Icon(Icons.add),
       ),
     );
   }
