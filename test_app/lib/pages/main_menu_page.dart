@@ -1,4 +1,4 @@
-// 舊版的主選單頁面
+// 登入後主選單與底部導航，用於核心頁面跳轉。
 
 import 'package:flutter/material.dart';
 import './select_part_page.dart';

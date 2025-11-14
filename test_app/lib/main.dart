@@ -1,4 +1,4 @@
-// App 的主入口點、主題設定、以及導覽列框架。
+// 設定主題與底部導覽列
 
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -9,9 +9,9 @@ import './pages/login_page.dart';
 import './pages/dashboard_home_page.dart';
 import './pages/select_part_page.dart';
 import './pages/workout_history_page.dart';
-import './pages/recommendations_page.dart';
 import './pages/settings_page.dart';
-import './services/notification_service.dart';
+import '../pages/community_page.dart'; 
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -135,11 +135,12 @@ class _MainAppShellState extends State<MainAppShell> {
   @override
   void initState() {
     super.initState();
+    // 【修改】確認 _pages 列表包含 5 個頁面，且第 4 個是 CommunityPage
     _pages = <Widget>[
       DashboardHomePage(account: widget.account),
       const SelectPartPage(),
-      WorkoutHistoryPage(account: widget.account), 
-      RecommendationsPage(account: widget.account),
+      WorkoutHistoryPage(account: widget.account),
+      const CommunityPage(), // 之前是 RecommendationsPage
       SettingsPage(account: widget.account),
     ];
   }
@@ -172,12 +173,13 @@ class _MainAppShellState extends State<MainAppShell> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today_outlined),
             activeIcon: Icon(Icons.calendar_today),
-            label: '訓練日曆',
+            label: '日曆',
           ),
+          // 【修改】將「建議課程」(燈泡) 改為「社群」(人群)
           BottomNavigationBarItem(
-            icon: Icon(Icons.lightbulb_outline),
-            activeIcon: Icon(Icons.lightbulb),
-            label: '建議課程',
+            icon: Icon(Icons.group_outlined), // 未選中圖示
+            activeIcon: Icon(Icons.group),      // 選中圖示
+            label: '社群',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
@@ -187,6 +189,9 @@ class _MainAppShellState extends State<MainAppShell> {
         ],
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        // 【重要】確認您的 bottomNavigationBarTheme 已設定
+        // (這段應該已在您的 MyApp class 中，這裡只是提醒)
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }

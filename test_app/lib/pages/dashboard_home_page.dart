@@ -5,9 +5,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../models/weight_log_model.dart';
+import '../models/workout_log_model.dart';
+import '../models/user_model.dart';
+import '../models/plan_item_model.dart';
 import '../services/database_helper.dart';
 import './weight_trend_page.dart';
 import '../models/exercise_model.dart';
+import './plan_editor_page.dart'; // 【修正】加上了這個 import
 
 class DashboardHomePage extends StatefulWidget {
   final String account;
@@ -18,13 +22,16 @@ class DashboardHomePage extends StatefulWidget {
 }
 
 class _DashboardHomePageState extends State<DashboardHomePage> {
-  // 狀態變數
+  User? _currentUser;
   double? _latestWeight;
   double? _weightChange;
   int _workoutsThisWeek = 0;
   Map<BodyPart, double> _bodyPartDistribution = {};
+  
+// 【新增】課表相關狀態
+  Map<int, List<PlanItem>> _planItems = {};
+  int? _selectedDayOnCard;
 
-  // 為不同肌群定義顏色
   final Map<BodyPart, Color> _bodyPartColors = {
     BodyPart.chest: Colors.blue.shade400,
     BodyPart.back: Colors.green.shade400,
@@ -38,14 +45,41 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
   @override
   void initState() {
     super.initState();
-    _loadSummaryData();
+    _loadAllData();
+  }
+  
+  Future<void> _loadAllData() async {
+    final user = await DatabaseHelper.instance.getUserByAccount(widget.account);
+    if (mounted) {
+      setState(() {
+        _currentUser = user;
+        // 【新增】初始化課表卡片上預設選中的日期
+        if (user?.trainingDays != null && user!.trainingDays!.isNotEmpty) {
+          final firstDay = int.tryParse(user.trainingDays!.split(',').first);
+          _selectedDayOnCard = firstDay;
+        }
+      });
+    }
+    
+    await Future.wait([
+      _loadWeightData(),
+      _loadWorkoutData(),
+      _loadAllPlanItems(), // 【新增】同時載入課表
+    ]);
   }
 
-  Future<void> _loadSummaryData() async {
-    _loadWeightData();
-    _loadWorkoutData();
+  Future<void> _loadAllPlanItems() async {
+    Map<int, List<PlanItem>> items = {};
+    for (int i = 1; i <= 7; i++) {
+      items[i] = await DatabaseHelper.instance.getPlanItemsForDay(i);
+    }
+    if (mounted) {
+      setState(() {
+        _planItems = items;
+      });
+    }
   }
-
+  
   Future<void> _loadWeightData() async {
     final weightLogs = await DatabaseHelper.instance.getWeightLogs();
     if (!mounted) return;
@@ -112,7 +146,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
       context: context,
       builder: (BuildContext dialogContext) => _AddWeightDialog(
         onSave: () {
-          _loadSummaryData();
+          _loadAllData();
         },
       ),
     );
@@ -126,18 +160,20 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadSummaryData,
+            onPressed: _loadAllData,
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadSummaryData,
+        onRefresh: _loadAllData,
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
             _buildWorkoutSummaryCard(),
             const SizedBox(height: 16),
             _buildWeightSummaryCard(),
+            const SizedBox(height: 16),
+            _buildMyPlansSection(),
           ],
         ),
       ),
@@ -152,12 +188,8 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
           color: _bodyPartColors[part] ?? Colors.grey,
           value: percentage,
           title: '${percentage.toStringAsFixed(0)}%',
-          radius: 40,
-          titleStyle: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+          radius: 30,
+          titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
         ),
       );
     });
@@ -167,45 +199,35 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            SizedBox(
-              height: 100,
-              width: 100,
-              child: sections.isEmpty
-                  ? const Center(child: Text('本週無紀錄', style: TextStyle(color: Colors.grey)))
-                  : PieChart(
-                      PieChartData(
-                        sections: sections,
-                        centerSpaceRadius: 25,
-                        sectionsSpace: 2,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '本週訓練摘要',
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade400),
-                  ),
+                  Text('本週訓練摘要', style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
                   const SizedBox(height: 8),
                   Text.rich(
                     TextSpan(
                       children: [
-                        TextSpan(
-                          text: '$_workoutsThisWeek',
-                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                        ),
-                        const TextSpan(
-                          text: ' 次',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
-                        ),
+                        TextSpan(text: '$_workoutsThisWeek', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
+                        const TextSpan(text: ' 次', style: TextStyle(color: Colors.grey, fontSize: 16)),
                       ],
                     ),
                   ),
                 ],
               ),
+            ),
+            SizedBox(
+              height: 80,
+              width: 80,
+              child: sections.isEmpty
+                  ? Center(child: Text('本週\n無紀錄', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400)))
+                  : PieChart(
+                      PieChartData(
+                        sections: sections,
+                        centerSpaceRadius: 20,
+                        sectionsSpace: 2,
+                      ),
+                    ),
             ),
           ],
         ),
@@ -215,8 +237,8 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
 
   Widget _buildWeightSummaryCard() {
     final changeValue = _weightChange;
-    final changeColor = (changeValue == null) ? Colors.grey : (changeValue >= 0 ? Colors.red.shade400 : Colors.green.shade400);
-    final changeIcon = (changeValue == null) ? Icons.remove : (changeValue >= 0 ? Icons.arrow_upward : Icons.arrow_downward);
+    final changeColor = (changeValue == null || changeValue == 0) ? Colors.grey : (changeValue > 0 ? Colors.red.shade400 : Colors.green.shade400);
+    final changeIcon = (changeValue == null || changeValue == 0) ? Icons.remove : (changeValue > 0 ? Icons.arrow_upward : Icons.arrow_downward);
     final changeText = changeValue != null ? changeValue.abs().toStringAsFixed(1) : '-';
 
     return Card(
@@ -231,7 +253,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
                     context,
                     MaterialPageRoute(builder: (context) => WeightTrendPage(account: widget.account)),
                   );
-                  _loadSummaryData();
+                  _loadAllData();
                 },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -275,7 +297,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
             Container(
               margin: const EdgeInsets.only(left: 8),
               decoration: BoxDecoration(
-               color: Theme.of(context).colorScheme.primary.withAlpha(50),
+                color: Theme.of(context).colorScheme.primary.withAlpha(50),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -285,6 +307,106 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMyPlansSection() {
+    final List<String> dayNames = ['一', '二', '三', '四', '五', '六', '日'];
+    List<int> trainingDays = [];
+    
+    if (_currentUser?.trainingDays != null && _currentUser!.trainingDays!.isNotEmpty) {
+      trainingDays = _currentUser!.trainingDays!.split(',')
+          .map((dayStr) => int.tryParse(dayStr) ?? 0)
+          .where((dayInt) => dayInt >= 1 && dayInt <= 7)
+          .toList()..sort();
+    }
+
+   final itemsForSelectedDay = _planItems[_selectedDayOnCard] ?? [];
+
+    return Card(
+      child: InkWell(
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => PlanEditorPage(account: widget.account)),
+          );
+          if (result == true) {
+            _loadAllData();
+          }
+        },
+        borderRadius: BorderRadius.circular(12.0),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 標題和編輯按鈕
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('我的課表', style: Theme.of(context).textTheme.titleMedium),
+                  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              // 如果沒有設定練習日
+              if (trainingDays.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                    child: Text('尚未設定練習日', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                  ),
+                )
+              else
+                // 如果已設定練習日
+                Column(
+                  children: [
+                    // 1. 星期選擇器
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ToggleButtons(
+                        isSelected: trainingDays.map((day) => day == _selectedDayOnCard).toList(),
+                        onPressed: (int index) {
+                          setState(() {
+                            _selectedDayOnCard = trainingDays[index];
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8.0),
+                        constraints: const BoxConstraints(minHeight: 40.0, minWidth: 50.0),
+                        children: trainingDays.map((day) => Text(dayNames[day - 1])).toList(),
+                      ),
+                    ),
+                    const Divider(height: 24),
+                    // 2. 課表內容
+                    if (itemsForSelectedDay.isEmpty)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16.0),
+                          child: Text('這天沒有安排動作', style: TextStyle(color: Colors.grey)),
+                        ),
+                      )
+                    else
+                      Column(
+                        children: itemsForSelectedDay.map((item) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(item.exerciseName, style: const TextStyle(fontSize: 16)),
+                                Text('組數: ${item.sets}  重量: ${item.weight}kg', style: TextStyle(color: Colors.grey.shade400, fontSize: 16)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );

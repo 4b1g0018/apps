@@ -1,4 +1,4 @@
-// 訓練日曆，用以查詢過去的訓練紀錄。
+// 訓練日曆與歷史紀錄瀏覽頁面。
 
 // lib/pages/workout_history_page.dart
 
@@ -53,6 +53,31 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
       case BodyPart.back: return Colors.green.shade400;
     }
   }
+Widget _buildLegendItem(Color color, String name) {
+    return Row(
+      mainAxisSize: MainAxisSize.min, // 讓 Row 只佔用它需要的寬度
+      children: [
+        Container(width: 12, height: 12, color: color),
+        const SizedBox(width: 6),
+        Text(name),
+      ],
+    );
+  }
+    Widget _buildLegend() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+      // 使用 Wrap Widget，如果一行放不下，它會自動換行，避免出錯
+      child: Wrap(
+        spacing: 16.0, // 每個項目之間的水平間距
+        runSpacing: 8.0,   // 每一行之間的垂直間距
+        alignment: WrapAlignment.center, // 置中對齊
+        children: BodyPart.values.map((part) {
+          // 遍歷所有 BodyPart 的值，為每一個都建立一個圖例項目
+          return _buildLegendItem(_getColorForBodyPart(part), part.displayName);
+        }).toList(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,46 +107,51 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
               itemBuilder: (context, index) {
                 // 第一個項目永遠是日曆
                 if (index == 0) {
-                  return Column(
-                    children: [
-                      TableCalendar<WorkoutLog>(
-                        locale: 'zh_TW',
-                        firstDay: DateTime.utc(2020, 1, 1),
-                        lastDay: DateTime.utc(2030, 12, 31),
-                        focusedDay: _focusedDay,
-                        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                        eventLoader: (day) => _getLogsForDay(day, allLogs),
-                        onDaySelected: (selectedDay, focusedDay) {
-                          if (!isSameDay(_selectedDay, selectedDay)) {
-                            setState(() {
-                              _selectedDay = selectedDay;
-                              _focusedDay = focusedDay;
-                            });
-                          }
-                        },
-                        onPageChanged: (focusedDay) {
-                          _focusedDay = focusedDay;
-                        },
-                        calendarStyle: const CalendarStyle(
-                          outsideDaysVisible: false,
-                          todayDecoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
-                          selectedDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
-                        ),
-                        calendarBuilders: CalendarBuilders(
-                          markerBuilder: (context, date, events) {
-                            if (events.isNotEmpty) {
-                              final colors = events.map((log) => _getColorForBodyPart(log.bodyPart)).toSet().toList();
-                              return Positioned(bottom: 1, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: colors.map((color) => Container(margin: const EdgeInsets.symmetric(horizontal: 1.5), width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: color))).toList()));
-                            }
-                            return null;
-                          },
-                        ),
+                  return Card(
+                // Card 會自動使用您在 main.dart 中定義好的主題樣式
+                margin: const EdgeInsets.only(left: 8, right: 8, bottom: 8),
+                clipBehavior: Clip.antiAlias, // 確保內容不會超出圓角
+                child: Column(
+                  children: [
+                    TableCalendar<WorkoutLog>(
+                      locale: 'zh_TW',
+                      firstDay: DateTime.utc(2020, 1, 1),
+                      lastDay: DateTime.utc(2030, 12, 31),
+                      focusedDay: _focusedDay,
+                      selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                      eventLoader: (day) => _getLogsForDay(day, allLogs),
+                      onDaySelected: (selectedDay, focusedDay) {
+                        if (!isSameDay(_selectedDay, selectedDay)) {
+                          setState(() {
+                            _selectedDay = selectedDay;
+                            _focusedDay = focusedDay;
+                          });
+                        }
+                      },
+                      onPageChanged: (focusedDay) {
+                        _focusedDay = focusedDay;
+                      },
+                      calendarStyle: const CalendarStyle(
+                        outsideDaysVisible: false,
+                        todayDecoration: BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
+                        selectedDecoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
                       ),
-                      const Divider(height: 1),
-                      const SizedBox(height: 8),
-                    ],
-                  );
-                }
+                      calendarBuilders: CalendarBuilders(
+                        markerBuilder: (context, date, events) {
+                          if (events.isNotEmpty) {
+                            final colors = events.map((log) => _getColorForBodyPart(log.bodyPart)).toSet().toList();
+                            return Positioned(bottom: 1, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: colors.map((color) => Container(margin: const EdgeInsets.symmetric(horizontal: 1.5), width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: color))).toList()));
+                          }
+                          return null;
+                        },
+                      ),
+                    ),
+                    _buildLegend(),
+                    // 我們不再需要 Divider 和 SizedBox，因為 Card 本身就是一個分隔
+                  ],
+                ),
+              );
+            }
 
                 if (selectedLogs.isEmpty) {
                   return const Padding(

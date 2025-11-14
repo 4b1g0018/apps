@@ -1,6 +1,9 @@
 // 定義「使用者」的資料結構
 
+// lib/models/user_model.dart
+
 enum FitnessLevel { light, medium, heavy }
+
 class User {
   final int? id;
   final String account;
@@ -9,13 +12,12 @@ class User {
   final String weight;
   final String age;
   final String bmi;
-  final String? fat; 
+  final String? fat;
+  final String? gender;
+  final String? bmr;
   final String? goalWeight;
   final String? fitnessLevel;
-
-  // 新增欄位
-  final String? gender; // 性別，'male' 或 'female'
-  final String? bmr;    // BMR，儲存計算結果
+  final String? trainingDays; // 【新增】儲存練習日 (例如 "1,3,5" 代表週一三五)
 
   User({
     this.id,
@@ -26,14 +28,13 @@ class User {
     required this.age,
     required this.bmi,
     this.fat,
-    // 加入建構子
-    this.gender, 
+    this.gender,
     this.bmr,
     this.goalWeight,
     this.fitnessLevel,
+    this.trainingDays, // 【新增】
   });
 
-  // 將 User 物件轉換成 Map，方便寫入資料庫
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -44,15 +45,14 @@ class User {
       'age': age,
       'bmi': bmi,
       'fat': fat,
-      // 加入 Map
       'gender': gender,
       'bmr': bmr,
       'goalWeight': goalWeight,
-      'fitnessLevel': fitnessLevel, 
+      'fitnessLevel': fitnessLevel,
+      'trainingDays': trainingDays, // 【新增】
     };
   }
 
-  // 從 Map 建立 User 物件，方便從資料庫讀取
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
       id: map['id'],
@@ -63,15 +63,14 @@ class User {
       age: map['age'],
       bmi: map['bmi'],
       fat: map['fat'],
-      // 從 Map 讀取
       gender: map['gender'],
       bmr: map['bmr'],
-      goalWeight: map['goalWeight'],  
+      goalWeight: map['goalWeight'],
       fitnessLevel: map['fitnessLevel'],
+      trainingDays: map['trainingDays'], // 【新增】
     );
   }
 
-  // 建立一個 copyWith 方法，這在更新部分資料時非常方便
   User copyWith({
     int? id,
     String? account,
@@ -81,11 +80,11 @@ class User {
     String? age,
     String? bmi,
     String? fat,
-    // 加入 copyWith
     String? gender,
     String? bmr,
     String? goalWeight,
-    String? fitnessLevel, 
+    String? fitnessLevel,
+    String? trainingDays, // 【新增】
   }) {
     return User(
       id: id ?? this.id,
@@ -96,11 +95,11 @@ class User {
       age: age ?? this.age,
       bmi: bmi ?? this.bmi,
       fat: fat ?? this.fat,
-      // copyWith
       gender: gender ?? this.gender,
       bmr: bmr ?? this.bmr,
       goalWeight: goalWeight ?? this.goalWeight,
-      fitnessLevel: fitnessLevel ?? this.fitnessLevel, 
+      fitnessLevel: fitnessLevel ?? this.fitnessLevel,
+      trainingDays: trainingDays ?? this.trainingDays, // 【新增】
     );
   }
 }

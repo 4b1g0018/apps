@@ -1,4 +1,4 @@
-
+//建議課程 目前沒用到
 import './user_model.dart'; 
 
 // 一個完整的訓練計畫

@@ -1,4 +1,4 @@
-// 「開始訓練」流程的第一步：選擇肌群部位。
+// 訓練部位選擇頁面，呈現可選肌群。
 
 import 'package:flutter/material.dart';
 import '../models/exercise_model.dart';

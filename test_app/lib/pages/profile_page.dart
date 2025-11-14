@@ -1,4 +1,5 @@
-// 使用者個人資料的檢視與修改頁面。
+// 個人資料修改頁面，可編輯身高、體重，並即時計算 BMI 與 BMR。
+
 
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';

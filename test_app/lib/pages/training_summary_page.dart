@@ -1,28 +1,41 @@
-// 單次訓練完成後的成果摘要頁面。
+// 訓練結束總結頁面，展示本次訓練成果。
 
 import 'package:flutter/material.dart';
-// 引入我們剛剛建立的訓練紀錄模型
-import '../models/workout_log_model.dart';
-// 引入 intl 套件來格式化日期，讓它看起來更友善
-// 你可能需要在終端機執行 `flutter pub add intl` 來安裝這個套件
 import 'package:intl/intl.dart';
 
-// 這是一個 StatelessWidget，因為它只是單純地顯示傳入的紀錄資訊。
-class TrainingSummaryPage extends StatelessWidget {
-  // 接收從訓練頁面傳過來的訓練紀錄物件
-  final WorkoutLog log;
+import '../models/workout_log_model.dart';
+import '../models/set_log_model.dart'; // 【新增】導入 SetLog 模型
+import '../services/database_helper.dart'; // 【新增】導入資料庫服務
 
+// 【修改】將頁面改為 StatefulWidget
+class TrainingSummaryPage extends StatefulWidget {
+  final WorkoutLog log;
   const TrainingSummaryPage({super.key, required this.log});
 
   @override
+  State<TrainingSummaryPage> createState() => _TrainingSummaryPageState();
+}
+
+class _TrainingSummaryPageState extends State<TrainingSummaryPage> {
+  // 【新增】用來管理非同步讀取 SetLog 的 Future
+  late Future<List<SetLog>> _setLogsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // 在頁面初始化時，根據傳入的 WorkoutLog 的 id，去資料庫讀取對應的 SetLog 列表
+    if (widget.log.id != null) {
+      _setLogsFuture = DatabaseHelper.instance.getSetLogsForWorkout(widget.log.id!);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // 使用 DateFormat 來將 DateTime 物件轉換成我們想要的格式，例如 "yyyy/MM/dd HH:mm"
-    final formattedDate = DateFormat('yyyy/MM/dd HH:mm').format(log.completedAt);
+    final formattedDate = DateFormat('yyyy/MM/dd HH:mm').format(widget.log.completedAt);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('訓練總結'),
-        // 隱藏返回按鈕，我們希望使用者透過下方的按鈕離開
         automaticallyImplyLeading: false,
         centerTitle: true,
       ),
@@ -30,55 +43,59 @@ class TrainingSummaryPage extends StatelessWidget {
         padding: const EdgeInsets.all(32.0),
         child: Center(
           child: Column(
-            // `mainAxisAlignment` 設為 center 會讓所有子元件垂直置中
-            mainAxisAlignment: MainAxisAlignment.center,
-            // `crossAxisAlignment` 設為 stretch 會讓子元件在水平方向上填滿可用空間
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(
-                Icons.check_circle_outline_rounded,
-                color: Colors.green,
-                size: 80,
-              ),
+              const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 80),
               const SizedBox(height: 24),
-              const Text(
-                '做得好！',
-                textAlign: TextAlign.center, // 文字置中
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              ),
+              const Text('做得好！', textAlign: TextAlign.center, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(
-                '你已完成本次訓練',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
-              ),
+              Text('你已完成 ${widget.log.exerciseName}', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, color: Colors.grey.shade700)),
               const SizedBox(height: 40),
 
-              // --- 顯示訓練成果的卡片 ---
+              // 【修改】將 Card 的內容改為使用 FutureBuilder
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
                     children: [
-                      _buildSummaryRow('訓練項目：', log.exerciseName),
-                      const SizedBox(height: 12),
-                      _buildSummaryRow('完成組數：', '${log.totalSets} 組'),
-                      const SizedBox(height: 12),
                       _buildSummaryRow('完成時間：', formattedDate),
+                      const Divider(height: 24),
+                      // 使用 FutureBuilder 來顯示 SetLog 列表
+                      FutureBuilder<List<SetLog>>(
+                        future: _setLogsFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                            return const Center(child: Text('找不到詳細的組數紀錄'));
+                          }
+
+                          final setLogs = snapshot.data!;
+
+                          // 使用 ListView 來顯示每一組的數據
+                          return ListView.separated(
+                            // 讓 ListView 不會和外層的 Column 搶滾動
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: setLogs.length,
+                            itemBuilder: (context, index) {
+                              final setLog = setLogs[index];
+                              return _buildSetRow(setLog);
+                            },
+                            // 每個項目之間的分隔線
+                            separatorBuilder: (context, index) => const SizedBox(height: 8),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
               ),
 
-              const Spacer(), // Spacer 會把按鈕推到最底下
-
-              // --- 返回主選單按鈕 ---
+              const Spacer(),
               ElevatedButton(
                 onPressed: () {
-                  // `popUntil` 會一直關閉頁面，直到滿足指定的條件為止。
-                  // `route.isFirst` 的意思就是「直到第一個頁面」，也就是我們的主選單。
-                  // 這樣可以一次性地清除掉所有訓練相關的頁面（設定、計時、總結），
-                  // 直接乾淨地返回主選單。
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 style: ElevatedButton.styleFrom(
@@ -92,8 +109,32 @@ class TrainingSummaryPage extends StatelessWidget {
       ),
     );
   }
+  
+  // 【新增】一個 Helper 方法來建立每一組的顯示 UI
+  Widget _buildSetRow(SetLog setLog) {
+    return Row(
+      children: [
+        Text(
+          '第 ${setLog.setNumber} 組:',
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade800),
+        ),
+        const Spacer(),
+        Text(
+          '${setLog.weight} kg',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(width: 4),
+        const Text('x', style: TextStyle(fontSize: 14, color: Colors.grey)),
+        const SizedBox(width: 4),
+        Text(
+          '${setLog.reps} 次',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+  }
 
-  // Helper 方法，用來建立一行行的總結文字，讓程式碼更整齊
+  // 這個方法可以保留，也可以用上面的新方法取代
   Widget _buildSummaryRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,

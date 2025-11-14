@@ -34,7 +34,7 @@ class _ExerciseSetupPageState extends State<ExerciseSetupPage> {
         padding: const EdgeInsets.all(24.0),
         children: [
           // 【新增】教學影片的預留空間
-          AspectRatio(
+          /*AspectRatio(
             aspectRatio: 16 / 9, // 保持 16:9 的影片比例
             child: Container(
               decoration: BoxDecoration(
@@ -52,7 +52,7 @@ class _ExerciseSetupPageState extends State<ExerciseSetupPage> {
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 32),*/
 
           Text(
             '訓練參數',

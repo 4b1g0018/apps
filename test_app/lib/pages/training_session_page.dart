@@ -1,10 +1,10 @@
-// 訓練進行中的計時與計組頁面
+// 訓練過程頁面，實時計時與組數追蹤。
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/exercise_model.dart';
 import '../models/workout_log_model.dart';
-import '../models/set_log_model.dart'; // 【新增】導入 SetLog
+import '../models/set_log_model.dart';
 import './training_summary_page.dart';
 import '../services/database_helper.dart';
 
@@ -31,14 +31,12 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
   int _currentSet = 1;
   int _countdownSeconds = 5;
   bool _isResting = false;
-  bool _isPreparing = true; // 【修改】用一個更精確的變數名
+  bool _isPreparing = true;
 
-  // 【新增】管理重量和次數輸入的控制器
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _repsController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  // 【新增】一個 List 用來暫存每一組的數據
   final List<Map<String, dynamic>> _setsData = [];
 
   @override
@@ -64,13 +62,11 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
       } else {
         timer.cancel();
         setState(() {
-          // 倒數結束後，將對應的狀態設為 false
           if (_isPreparing) {
             _isPreparing = false;
           }
           if (_isResting) {
             _isResting = false;
-            // 休息結束後，自動填上上一組的數據方便修改
             if (_setsData.isNotEmpty) {
               _weightController.text = _setsData.last['weight'].toString();
               _repsController.text = _setsData.last['reps'].toString();
@@ -85,7 +81,6 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
     _timer?.cancel();
     setState(() {
       _isResting = false;
-      // 休息結束後，自動填上上一組的數據
       if (_setsData.isNotEmpty) {
         _weightController.text = _setsData.last['weight'].toString();
         _repsController.text = _setsData.last['reps'].toString();
@@ -98,7 +93,6 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
       return;
     }
     
-    // 1. 記錄當前組數的數據
     _setsData.add({
       'setNumber': _currentSet,
       'weight': double.tryParse(_weightController.text) ?? 0.0,
@@ -106,7 +100,6 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
     });
 
     if (_currentSet < widget.totalSets) {
-      // 2. 如果還沒達到總組數 -> 進入休息
       setState(() {
         _isResting = true;
         _currentSet++;
@@ -114,7 +107,7 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
       });
       _startCountdown();
     } else {
-      // 3. 如果已經完成所有組數 -> 儲存數據並結束
+      // 完成所有組數
       final workoutLog = WorkoutLog(
         exerciseName: widget.exercise.name,
         totalSets: widget.totalSets,
@@ -123,6 +116,9 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
       );
       final workoutLogId = await DatabaseHelper.instance.insertWorkoutLog(workoutLog);
       
+      // 使用 copyWith 建立一個包含 ID 的新物件
+      final savedLog = workoutLog.copyWith(id: workoutLogId);
+
       for (var setData in _setsData) {
         final setLog = SetLog(
           workoutLogId: workoutLogId,
@@ -135,9 +131,10 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
       
       if (!mounted) return;
       
+      // 將包含了 ID 的 savedLog 傳遞下去
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => TrainingSummaryPage(log: workoutLog),
+          builder: (context) => TrainingSummaryPage(log: savedLog),
         ),
       );
     }
@@ -159,79 +156,68 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
         title: Text(widget.exercise.name),
         automaticallyImplyLeading: false,
       ),
-      body: Center(
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 40.0, left: 24.0, right: 24.0, top: 24.0),
         child: Form(
           key: _formKey,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(statusText, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w300)),
               const SizedBox(height: 20),
               
-              if (_isPreparing || _isResting)
+              // 根據狀態顯示計時器，或影像辨識區塊
+             if (_isPreparing || _isResting)
                 // 休息或準備時，顯示倒數計時器
-                Text('$_countdownSeconds', style: const TextStyle(fontSize: 120, fontWeight: FontWeight.bold))
-              else
-
-
-                // 【修改】訓練中，顯示影像辨識的預留空間
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade800),
+                  child: Center(
+                    child: Text('$_countdownSeconds',
+                        style: const TextStyle(
+                            fontSize: 120, fontWeight: FontWeight.bold)),
+                  ),
+                )
+              else
+                // 【修改】我們移除了影像辨識區塊，
+                // 換成一個空的 Expanded 來彈性地佔用空間，
+                // 這樣可以讓下方的輸入框和按鈕保持在正確的位置。
+                const Expanded(
+                  child: SizedBox(),
+                ),
+                
+              
+              // 如果正在訓練，顯示輸入框
+              if (!_isPreparing && !_isResting)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24.0),
+                  child: _buildTrainingInputFields(),
+                ),
+
+              const Spacer(), // 把按鈕推到下面
+
+              // 按鈕區塊
+              Row(
+                children: [
+                  if (_isResting)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _skipRest,
+                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 20)),
+                        child: const Text('跳過休息', style: TextStyle(fontSize: 20)),
                       ),
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.camera_alt_outlined, color: Colors.white54, size: 60),
-                            SizedBox(height: 12),
-                            Text('即時動作辨識 (待開發)', style: TextStyle(color: Colors.white54, fontSize: 16)),
-                          ],
-                        ),
+                    ),
+                  if (_isResting) const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: (_isPreparing || _isResting) ? null : _finishSet,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        disabledBackgroundColor: Theme.of(context).colorScheme.primary.withAlpha(77),
+                        disabledForegroundColor: Colors.white.withAlpha(128),
                       ),
+                      child: Text(_isResting ? '休息中...' : '完成第 $_currentSet 組', style: const TextStyle(fontSize: 20)),
                     ),
                   ),
-                ),
-              
-
-              
-               if (!_isPreparing && !_isResting)
-                _buildTrainingInputFields(),
-
-              const Expanded(child: SizedBox()),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Row(
-                  children: [
-                    if (_isResting)
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: _skipRest,
-                          style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 20)),
-                          child: const Text('跳過休息', style: TextStyle(fontSize: 20)),
-                        ),
-                      ),
-                    if (_isResting) const SizedBox(width: 16),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: (_isPreparing || _isResting) ? null : _finishSet,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          disabledBackgroundColor: Theme.of(context).colorScheme.primary.withAlpha(77),
-                          disabledForegroundColor: Colors.white.withAlpha(128),
-                        ),
-                        child: Text(_isResting ? '休息中...' : '完成第 $_currentSet 組', style: const TextStyle(fontSize: 20)),
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -240,33 +226,30 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> {
   }
   
   Widget _buildTrainingInputFields() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 48.0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextFormField(
-              controller: _weightController,
-              decoration: const InputDecoration(labelText: '重量 (kg)'),
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 24),
-              validator: (v) => v == null || v.isEmpty ? '請輸入' : null,
-            ),
+    return Row(
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: _weightController,
+            decoration: const InputDecoration(labelText: '重量 (kg)'),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24),
+            validator: (v) => v == null || v.isEmpty ? '請輸入' : null,
           ),
-          const SizedBox(width: 24),
-          Expanded(
-            child: TextFormField(
-              controller: _repsController,
-              decoration: const InputDecoration(labelText: '次數 (Reps)'),
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 24),
-              validator: (v) => v == null || v.isEmpty ? '請輸入' : null,
-            ),
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: TextFormField(
+            controller: _repsController,
+            decoration: const InputDecoration(labelText: '次數 (Reps)'),
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24),
+            validator: (v) => v == null || v.isEmpty ? '請輸入' : null,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

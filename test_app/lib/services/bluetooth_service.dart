@@ -1,4 +1,4 @@
-// 處理與藍牙硬體設備的連線服務
+// 藍牙核心服務，模擬掃描與連線，預留真實硬體接口。
 
 import 'dart:async';
 
@@ -26,7 +26,7 @@ class BluetoothService {
     _isScanningController.add(true);
     _scanResultsController.add([]); // 開始掃描時先清空列表
 
-    // 我們用一個 Future.delayed 來模擬掃描需要花費時間
+    // 我們用一個 Future.delayed demo
     await Future.delayed(const Duration(seconds: 2), () {
       final mockDevices = [
         MockBluetoothDevice(
