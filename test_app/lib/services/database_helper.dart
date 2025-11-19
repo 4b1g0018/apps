@@ -24,19 +24,20 @@ class DatabaseHelper {
     final path = join(dbPath, 'data.db');
     return await openDatabase(
       path,
-      version: 10, // 【確認】版本號為 10
+      version: 11, 
       onCreate: _createTables,
       onUpgrade: _onUpgrade,
     );
   }
 
-  Future<void> _createTables(Database db, int version) async {
+Future<void> _createTables(Database db, int version) async {
     await db.execute('''
       CREATE TABLE users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         account TEXT UNIQUE, password TEXT, height TEXT, weight TEXT,
         age TEXT, bmi TEXT, fat TEXT, gender TEXT, bmr TEXT,
-        goalWeight TEXT, fitnessLevel TEXT, trainingDays TEXT 
+        goalWeight TEXT, fitnessLevel TEXT, trainingDays TEXT,
+        nickname TEXT, hometown TEXT
       )
     ''');
     await db.execute('''
@@ -126,6 +127,12 @@ class DatabaseHelper {
           weight TEXT NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 11) {
+      await db.execute('ALTER TABLE users ADD COLUMN nickname TEXT');
+      
+      await db.execute('ALTER TABLE users ADD COLUMN hometown TEXT');
+     
     }
   }
 

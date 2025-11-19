@@ -17,7 +17,10 @@ class User {
   final String? bmr;
   final String? goalWeight;
   final String? fitnessLevel;
-  final String? trainingDays; // 【新增】儲存練習日 (例如 "1,3,5" 代表週一三五)
+  final String? trainingDays; // 【新增】儲存練習日 
+
+  final String? nickname;
+  final String? hometown;
 
   User({
     this.id,
@@ -32,7 +35,9 @@ class User {
     this.bmr,
     this.goalWeight,
     this.fitnessLevel,
-    this.trainingDays, // 【新增】
+    this.trainingDays, 
+    this.nickname, 
+    this.hometown,
   });
 
   Map<String, dynamic> toMap() {
@@ -49,7 +54,9 @@ class User {
       'bmr': bmr,
       'goalWeight': goalWeight,
       'fitnessLevel': fitnessLevel,
-      'trainingDays': trainingDays, // 【新增】
+      'trainingDays': trainingDays, 
+      'nickname': nickname, 
+      'hometown': hometown,
     };
   }
 
@@ -67,7 +74,9 @@ class User {
       bmr: map['bmr'],
       goalWeight: map['goalWeight'],
       fitnessLevel: map['fitnessLevel'],
-      trainingDays: map['trainingDays'], // 【新增】
+      trainingDays: map['trainingDays'], 
+      nickname: map['nickname'], 
+      hometown: map['hometown'],
     );
   }
 
@@ -84,7 +93,9 @@ class User {
     String? bmr,
     String? goalWeight,
     String? fitnessLevel,
-    String? trainingDays, // 【新增】
+    String? trainingDays, 
+    String? nickname, 
+    String? hometown,
   }) {
     return User(
       id: id ?? this.id,
@@ -99,7 +110,9 @@ class User {
       bmr: bmr ?? this.bmr,
       goalWeight: goalWeight ?? this.goalWeight,
       fitnessLevel: fitnessLevel ?? this.fitnessLevel,
-      trainingDays: trainingDays ?? this.trainingDays, // 【新增】
+      trainingDays: trainingDays ?? this.trainingDays, // 
+      nickname: nickname ?? this.nickname, 
+      hometown: hometown ?? this.hometown,
     );
   }
 }

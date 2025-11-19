@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+
 import './services/database_helper.dart';
 import './pages/login_page.dart';
 
@@ -15,8 +16,10 @@ import '../pages/community_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   await initializeDateFormatting();
   await DatabaseHelper.instance.initDB(); 
+  
 
   runApp(const MyApp());
 }
@@ -140,7 +143,7 @@ class _MainAppShellState extends State<MainAppShell> {
       DashboardHomePage(account: widget.account),
       const SelectPartPage(),
       WorkoutHistoryPage(account: widget.account),
-      const CommunityPage(), // 之前是 RecommendationsPage
+      CommunityPage(account: widget.account),
       SettingsPage(account: widget.account),
     ];
   }

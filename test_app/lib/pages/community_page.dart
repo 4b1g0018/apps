@@ -1,7 +1,8 @@
 // lib/pages/community_page.dart
 
 import 'package:flutter/material.dart';
-import './create_post_page.dart'; // 【確認】導入我們剛建立的頁面
+import './create_post_page.dart';
+import './community_profile_page.dart';
 
 // 暫時的假資料模型
 class MockPost {
@@ -11,7 +12,7 @@ class MockPost {
   final int likeCount;
   final int commentCount;
 
-  MockPost({
+  const MockPost({
     required this.userName,
     required this.title,
     required this.content,
@@ -21,15 +22,16 @@ class MockPost {
 }
 
 class CommunityPage extends StatefulWidget {
-  const CommunityPage({super.key});
+  final String account;
+  const CommunityPage({super.key, required this.account});
 
   @override
   State<CommunityPage> createState() => _CommunityPageState();
 }
 
 class _CommunityPageState extends State<CommunityPage> {
-  // 建立我們的假資料列表
-  final List<MockPost> _mockPosts = [
+  // 將假資料設為 const
+  final List<MockPost> _mockPosts = const [
     MockPost(
       userName: '健身小王子',
       title: '今天練胸日，PR 100kg 達成！',
@@ -51,36 +53,119 @@ class _CommunityPageState extends State<CommunityPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('社群'),
+        backgroundColor: Colors.black, // 確保 AppBar 頂部也是黑色
+        
+      
         actions: [
-          IconButton(
-            icon: const Icon(Icons.groups_outlined),
-            onPressed: () {
-              // TODO: 之後在這裡導向到「群組」頁面
-            },
-            tooltip: '我的群組',
+          
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CommunityProfilePage(account: widget.account),
+                  ),
+                );
+              },
+              child: CircleAvatar(
+                radius: 14,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: const Icon(Icons.person, size: 18, color: Colors.white),
+              ),
+            ),
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _mockPosts.length,
-        itemBuilder: (context, index) {
-          final post = _mockPosts[index];
-          return _buildPostCard(post);
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const CreatePostPage()),
-          );
-        },
-        child: const Icon(Icons.add),
-        tooltip: '建立貼文',
+      body: Column(
+        children: [
+          // --- 1. 置頂 Header 區塊 (不會滾動) ---
+          Container(
+            color: Colors.black, // 匹配 Retro 風格的黑色背景
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '第 47 週', // 靜態週數
+                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                // 橫向滾動的日期卡片
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildAddPostCard(context), // 【新增】第一個項目是 '+' 號卡片
+                      const SizedBox(width: 8),
+                      ...List.generate(5, (index) => _buildDateCard('11月 ${17 + index}', '週${index + 1}')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // --- 2. 可滾動的 Feed 區塊 ---
+          Expanded( // 讓 ListView 佔據所有剩餘空間
+            child: ListView.builder(
+              itemCount: _mockPosts.length,
+              itemBuilder: (context, index) {
+                final post = _mockPosts[index];
+                return _buildPostCard(post);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
+  // 【新增】建立新增貼文的卡片
+  Widget _buildAddPostCard(BuildContext context) {
+    return Container(
+      width: 80,
+      height: 60,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary, // 藍色背景
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => const CreatePostPage()));
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: const Center(
+          child: Icon(Icons.add, size: 30, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  // Helper 方法：建立橫向滾動的日期卡片
+  Widget _buildDateCard(String date, String day) {
+    // 這裡只是模擬方塊的樣式
+    final bool isSelected = date.endsWith('17'); // 模擬選中 11/17
+    return Padding(
+      padding: const EdgeInsets.only(right: 8.0),
+      child: Container(
+        width: 80,
+        height: 60,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.grey.shade800 : Colors.grey.shade900,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(date, style: TextStyle(color: isSelected ? Colors.white : Colors.grey)),
+            Text(day, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
   // 建立貼文卡片的 Helper 方法
   Widget _buildPostCard(MockPost post) {
     return Card(
