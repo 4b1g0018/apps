@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  
+
   # 核心功能套件
   sqflite: ^2.3.3+1
   path: ^1.9.0
@@ -19,6 +21,8 @@ dependencies:
 
   # UI 與視覺化
   cupertino_icons: ^1.0.6
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
   fl_chart: ^0.68.0
   table_calendar: ^3.1.2
 
@@ -40,6 +44,7 @@ dev_dependencies:
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
 
+  
 flutter:
   uses-material-design: true
   assets:
