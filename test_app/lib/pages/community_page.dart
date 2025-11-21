@@ -1,25 +1,11 @@
 // lib/pages/community_page.dart
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_service.dart';
 import './create_post_page.dart';
 import './community_profile_page.dart';
-
-// 暫時的假資料模型
-class MockPost {
-  final String userName;
-  final String title;
-  final String content;
-  final int likeCount;
-  final int commentCount;
-
-  const MockPost({
-    required this.userName,
-    required this.title,
-    required this.content,
-    this.likeCount = 0,
-    this.commentCount = 0,
-  });
-}
 
 class CommunityPage extends StatefulWidget {
   final String account;
@@ -30,49 +16,25 @@ class CommunityPage extends StatefulWidget {
 }
 
 class _CommunityPageState extends State<CommunityPage> {
-  // 將假資料設為 const
-  final List<MockPost> _mockPosts = const [
-    MockPost(
-      userName: '健身小王子',
-      title: '今天練胸日，PR 100kg 達成！',
-      content: '努力了三個月，終於突破了個人紀錄，太開心了！繼續加油！#胸肌 #PR',
-      likeCount: 42,
-      commentCount: 8,
-    ),
-    MockPost(
-      userName: '有氧女孩',
-      title: '一週訓練課表分享',
-      content: '分享我的一週三練課表：週一練腿、週三練背、週五全身循環。歡迎大家一起討論！',
-      likeCount: 102,
-      commentCount: 15,
-    ),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('社群'),
-        backgroundColor: Colors.black, // 確保 AppBar 頂部也是黑色
-        
-      
+        backgroundColor: Colors.black,
+        leading: null, 
+        automaticallyImplyLeading: false,
         actions: [
-          
           Padding(
-            padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+            padding: const EdgeInsets.only(right: 16.0),
             child: GestureDetector(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CommunityProfilePage(account: widget.account),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (context) => CommunityProfilePage(account: widget.account)));
               },
               child: CircleAvatar(
-                radius: 14,
+                radius: 16,
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                child: const Icon(Icons.person, size: 18, color: Colors.white),
+                child: const Icon(Icons.person, size: 20, color: Colors.white),
               ),
             ),
           ),
@@ -80,78 +42,60 @@ class _CommunityPageState extends State<CommunityPage> {
       ),
       body: Column(
         children: [
-          // --- 1. 置頂 Header 區塊 (不會滾動) ---
           Container(
-            color: Colors.black, // 匹配 Retro 風格的黑色背景
+            color: Colors.black,
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '第 47 週', // 靜態週數
-                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-                ),
+                const Text('第 47 週', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                // 橫向滾動的日期卡片
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: [
-                      _buildAddPostCard(context), // 【新增】第一個項目是 '+' 號卡片
-                      const SizedBox(width: 8),
-                      ...List.generate(5, (index) => _buildDateCard('11月 ${17 + index}', '週${index + 1}')),
-                    ],
+                    children: List.generate(5, (index) => _buildDateCard('11月 ${17 + index}', '週${index + 1}')),
                   ),
                 ),
               ],
             ),
           ),
           
-          // --- 2. 可滾動的 Feed 區塊 ---
-          Expanded( // 讓 ListView 佔據所有剩餘空間
-            child: ListView.builder(
-              itemCount: _mockPosts.length,
-              itemBuilder: (context, index) {
-                final post = _mockPosts[index];
-                return _buildPostCard(post);
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirestoreService.instance.getPostsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) return const Center(child: Text('發生錯誤'));
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                final docs = snapshot.data?.docs ?? [];
+                if (docs.isEmpty) return const Center(child: Text('目前還沒有貼文，快來搶頭香！'));
+
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    return _buildPostCard(data);
+                  },
+                );
               },
             ),
           ),
         ],
       ),
-    );
-  }
-
-  // 【新增】建立新增貼文的卡片
-  Widget _buildAddPostCard(BuildContext context) {
-    return Container(
-      width: 80,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary, // 藍色背景
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: InkWell(
-        onTap: () {
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => const CreatePostPage()));
         },
-        borderRadius: BorderRadius.circular(10),
-        child: const Center(
-          child: Icon(Icons.add, size: 30, color: Colors.white),
-        ),
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  // Helper 方法：建立橫向滾動的日期卡片
   Widget _buildDateCard(String date, String day) {
-    // 這裡只是模擬方塊的樣式
-    final bool isSelected = date.endsWith('17'); // 模擬選中 11/17
+    final bool isSelected = date.endsWith('17');
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: Container(
-        width: 80,
-        height: 60,
+        width: 80, height: 60,
         decoration: BoxDecoration(
           color: isSelected ? Colors.grey.shade800 : Colors.grey.shade900,
           borderRadius: BorderRadius.circular(10),
@@ -166,54 +110,71 @@ class _CommunityPageState extends State<CommunityPage> {
       ),
     );
   }
-  // 建立貼文卡片的 Helper 方法
-  Widget _buildPostCard(MockPost post) {
+
+  Widget _buildPostCard(Map<String, dynamic> data) {
+    final userName = data['authorName'] ?? '未知使用者';
+    final title = data['title'] ?? '無標題';
+    final content = data['content'] ?? '';
+    final imageBase64 = data['imageUrl'] as String?; 
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. 貼文頂部 (頭像 + 名稱)
           ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.grey.shade800,
-              child: const Icon(Icons.person, color: Colors.white70),
-            ),
-            title: Text(post.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+            leading: CircleAvatar(backgroundColor: Colors.grey.shade800, child: const Icon(Icons.person, color: Colors.white70)),
+            title: Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
           
-          // 2. 貼文圖片 (本地佔位符)
-          Container(
-            width: double.infinity,
-            height: 250,
-            color: Colors.black,
-            child: const Center(
-              child: Icon(Icons.image_outlined, color: Colors.white54, size: 60),
+          if (imageBase64 != null && imageBase64.isNotEmpty)
+            Image.memory(
+              base64Decode(imageBase64), 
+              width: double.infinity,
+              height: 250,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(height: 250, color: Colors.grey[900], child: const Center(child: Icon(Icons.error))),
+            )
+          else
+            // 【修正】這裡就是您之前警告的地方，已加入 const
+            Container(
+              width: double.infinity, 
+              height: 250, 
+              color: Colors.grey[900],
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.image_outlined, color: Colors.white24, size: 60),
+                  SizedBox(height: 8),
+                  Text('無圖片', style: TextStyle(color: Colors.white24)),
+                ],
+              ),
             ),
-          ),
           
-          // 3. 貼文標題和內容
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(post.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text(post.content),
+                Text(content),
               ],
             ),
           ),
           const Divider(height: 1),
-          // 4. 按讚和留言
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
-                _buildActionButton(Icons.favorite_border, post.likeCount.toString()),
+                const Icon(Icons.favorite_border, size: 20, color: Colors.grey),
+                const SizedBox(width: 4),
+                const Text('0', style: TextStyle(color: Colors.grey)),
                 const SizedBox(width: 24),
-                _buildActionButton(Icons.comment_outlined, post.commentCount.toString()),
+                const Icon(Icons.comment_outlined, size: 20, color: Colors.grey),
+                const SizedBox(width: 4),
+                const Text('0', style: TextStyle(color: Colors.grey)),
                 const Spacer(),
                 const Icon(Icons.bookmark_border, color: Colors.grey),
               ],
@@ -221,17 +182,6 @@ class _CommunityPageState extends State<CommunityPage> {
           )
         ],
       ),
-    );
-  }
-
-  // 建立按鈕的 Helper 方法
-  Widget _buildActionButton(IconData icon, String label) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey.shade600),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: Colors.grey.shade600)),
-      ],
     );
   }
 }

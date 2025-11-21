@@ -5,7 +5,6 @@ import '../models/user_model.dart';
 import '../services/database_helper.dart';
 import '../models/plan_item_model.dart';
 import '../models/exercise_model.dart';
-import '../models/custom_exercise.dart';
 import '../services/mock_data_service.dart';
 
 class PlanEditorPage extends StatefulWidget {

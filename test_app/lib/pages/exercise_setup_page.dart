@@ -1,8 +1,9 @@
-// 「開始訓練」流程的第三步：設定訓練參數（組數、休息時間）。
+// lib/pages/exercise_setup_page.dart
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../models/exercise_model.dart';
+import '../models/plan_item_model.dart'; // 【新增】導入 PlanItem 模型
 import './training_session_page.dart';
 
 class ExerciseSetupPage extends StatefulWidget {
@@ -33,12 +34,12 @@ class _ExerciseSetupPageState extends State<ExerciseSetupPage> {
       body: ListView(
         padding: const EdgeInsets.all(24.0),
         children: [
-          // 【新增】教學影片的預留空間
-          /*AspectRatio(
-            aspectRatio: 16 / 9, // 保持 16:9 的影片比例
+          /*
+          AspectRatio(
+            aspectRatio: 16 / 9,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black, // 給一個黑色背景
+                color: Colors.black,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.grey.shade800),
               ),
@@ -52,14 +53,12 @@ class _ExerciseSetupPageState extends State<ExerciseSetupPage> {
               ),
             ),
           ),
-          const SizedBox(height: 32),*/
+          const SizedBox(height: 32),
+          */
 
-          Text(
-            '訓練參數',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('訓練參數', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
-          // ... 以下的訓練參數設定 UI 維持不變 ...
+          
           Row(
             children: [
               const Text('訓練組數：', style: TextStyle(fontSize: 16)),
@@ -113,13 +112,21 @@ class _ExerciseSetupPageState extends State<ExerciseSetupPage> {
                   );
                   return;
                 }
+                
+                // 【修正】建立一個臨時的 PlanItem 來適應新的 TrainingSessionPage
+                final tempPlanItem = PlanItem(
+                  dayOfWeek: 0, // 臨時項目，星期設為 0 即可
+                  exerciseName: widget.exercise.name,
+                  sets: _sets.toString(),
+                  weight: '', // 這裡還不知道重量，留空讓使用者在訓練時填寫
+                );
+
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => TrainingSessionPage(
-                      exercise: widget.exercise,
-                      totalSets: _sets,
-                      restTimeInSeconds: (_restMinutes * 60) + _restSeconds,
+                      // 傳遞一個只包含這一個動作的清單
+                      planItems: [tempPlanItem], 
                       bodyPart: widget.bodyPart,
                     ),
                   ),
@@ -144,16 +151,14 @@ class _ExerciseSetupPageState extends State<ExerciseSetupPage> {
     bool isSeconds = false,
   }) {
     return SizedBox(
-      height: 150,
+      height: 120,
       child: CupertinoPicker(
-        itemExtent: 40.0,
-        onSelectedItemChanged: onSelectedItemChanged,
+        itemExtent: 40,
         scrollController: FixedExtentScrollController(initialItem: initialItem),
-        children: List<Widget>.generate(itemCount, (index) {
-          final text = isSeconds ? '${index * 10}' : '${index + (suffix == '分' ? 0 : 1)}';
-          return Center(
-            child: Text('$text $suffix', style: const TextStyle(fontSize: 20)),
-          );
+        onSelectedItemChanged: onSelectedItemChanged,
+        children: List<Widget>.generate(itemCount, (int index) {
+          final value = isSeconds ? index * 10 : index + (suffix == '分' ? 0 : 1);
+          return Center(child: Text('$value $suffix'));
         }),
       ),
     );

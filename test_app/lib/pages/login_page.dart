@@ -88,6 +88,7 @@ final TextEditingController _emailController = TextEditingController();
     try {
     if (isLogin) {
       await AuthService.instance.signIn(email, password);
+
       if (!mounted) return;
         
         // 登入成功，導向主頁
@@ -97,10 +98,9 @@ final TextEditingController _emailController = TextEditingController();
           context,
           MaterialPageRoute(builder: (_) => MainAppShell(account: email)),
         );
-
+        //register
       } else {
-        // --- Firebase 註冊 ---
-        
+
         // 1. 先做基本的生理數值驗證
         final h = double.tryParse(_height.text);
         final w = double.tryParse(_weight.text);
@@ -143,24 +143,30 @@ final TextEditingController _emailController = TextEditingController();
         );
       }
     } on FirebaseAuthException catch (e) {
-      // 處理 Firebase 回傳的具體錯誤
-      String message = '發生錯誤';
-      if (e.code == 'user-not-found') {
-        message = '找不到此使用者，請先註冊';
-      } else if (e.code == 'wrong-password') {
-        message = '密碼錯誤';
+      // 【核心修正】處理 Firebase 錯誤碼
+      String message = '發生錯誤，請重試';
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'Email 或密碼錯誤，請重新確認。'; // 安全且友善的提示
       } else if (e.code == 'email-already-in-use') {
-        message = '此 Email 已經被註冊過了';
+        message = '此 Email 已經被註冊過了。';
       } else if (e.code == 'invalid-email') {
-        message = 'Email 格式不正確';
+        message = 'Email 格式不正確。';
       } else if (e.code == 'weak-password') {
-        message = '密碼強度不足 (至少6位)';
+        message = '密碼強度不足 (至少6位數)。';
+      } else {
+        // 處理未預期的網路或系統錯誤
+        message = '連線失敗，請檢查網路。';
       }
+     
+     
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: Colors.red));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('錯誤: $e'), backgroundColor: Colors.red));
+      // 處理本地邏輯錯誤 (例如生理數據驗證失敗)
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('發生未知錯誤: ${e.toString()}'), backgroundColor: Colors.red));
     } finally {
-      if (mounted) setState(() => _isLoading = false); // 隱藏轉圈圈
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

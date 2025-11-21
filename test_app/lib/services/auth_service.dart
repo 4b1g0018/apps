@@ -2,6 +2,7 @@
 
 // 【修改】將 firebase_auth 命名為 fbAuth，避免與我們自己的 User 模型衝突
 import 'package:firebase_auth/firebase_auth.dart' as fbAuth;
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   static final AuthService instance = AuthService._internal();
@@ -21,10 +22,10 @@ class AuthService {
       );
       return credential.user;
     } on fbAuth.FirebaseAuthException catch (e) {
-      print('註冊失敗: ${e.message}');
+      debugPrint('註冊失敗: ${e.message}');
       rethrow;
     } catch (e) {
-      print('註冊發生未知錯誤: $e');
+      debugPrint('註冊發生未知錯誤: $e');
       rethrow;
     }
   }
@@ -38,10 +39,10 @@ class AuthService {
       );
       return credential.user;
     } on fbAuth.FirebaseAuthException catch (e) {
-      print('登入失敗: ${e.message}');
+      debugPrint('登入失敗: ${e.message}');
       rethrow;
     } catch (e) {
-      print('登入發生未知錯誤: $e');
+      debugPrint('登入發生未知錯誤: $e');
       rethrow;
     }
   }

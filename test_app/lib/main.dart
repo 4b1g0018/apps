@@ -2,7 +2,6 @@
 
 import 'package:firebase_core/firebase_core.dart';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -25,9 +24,9 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    print("Firebase 初始化成功");
+    debugPrint("Firebase 初始化成功");
   } catch (e) {
-    print("Firebase 初始化失敗: $e");
+    debugPrint("Firebase 初始化失敗: $e");
   }
 
   await initializeDateFormatting();

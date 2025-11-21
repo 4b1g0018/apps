@@ -5,13 +5,14 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../models/weight_log_model.dart';
-import '../models/workout_log_model.dart';
 import '../models/user_model.dart';
+import '../models/plan_item_model.dart';
 import '../models/plan_item_model.dart';
 import '../services/database_helper.dart';
 import './weight_trend_page.dart';
 import '../models/exercise_model.dart';
-import './plan_editor_page.dart'; // 【修正】加上了這個 import
+import './plan_editor_page.dart'; 
+import './training_session_page.dart';
 
 class DashboardHomePage extends StatefulWidget {
   final String account;
@@ -31,6 +32,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
 // 【新增】課表相關狀態
   Map<int, List<PlanItem>> _planItems = {};
   int? _selectedDayOnCard;
+  List<PlanItem> _todayPlanItems = []; //今天的課表項目
 
   final Map<BodyPart, Color> _bodyPartColors = {
     BodyPart.chest: Colors.blue.shade400,
@@ -53,10 +55,15 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     if (mounted) {
       setState(() {
         _currentUser = user;
-        // 【新增】初始化課表卡片上預設選中的日期
-        if (user?.trainingDays != null && user!.trainingDays!.isNotEmpty) {
-          final firstDay = int.tryParse(user.trainingDays!.split(',').first);
-          _selectedDayOnCard = firstDay;
+        // 預設今天 否則跳到下一個訓練日
+       if (user?.trainingDays != null && user!.trainingDays!.isNotEmpty) {
+           final todayWeekday = DateTime.now().weekday;
+           final trainingDays = user.trainingDays!.split(',').map(int.parse).toList();
+           if (trainingDays.contains(todayWeekday)) {
+             _selectedDayOnCard = todayWeekday;
+           } else if (trainingDays.isNotEmpty) {
+             _selectedDayOnCard = trainingDays.first;
+        }
         }
       });
     }
@@ -73,9 +80,14 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     for (int i = 1; i <= 7; i++) {
       items[i] = await DatabaseHelper.instance.getPlanItemsForDay(i);
     }
+      //檢查課表
+    final todayWeekday = DateTime.now().weekday;
+    final todayItems = items[todayWeekday] ?? [];
+
     if (mounted) {
       setState(() {
         _planItems = items;
+        _todayPlanItems = todayItems;
       });
     }
   }
@@ -83,25 +95,17 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
   Future<void> _loadWeightData() async {
     final weightLogs = await DatabaseHelper.instance.getWeightLogs();
     if (!mounted) return;
-    
     if (weightLogs.isEmpty) {
-      setState(() {
-        _latestWeight = null;
-        _weightChange = null;
-      });
+      setState(() { _latestWeight = null; _weightChange = null; });
       return;
     }
-
     final latestWeight = weightLogs[0].weight;
     double? weightChange;
     if (weightLogs.length > 1) {
       final previousWeight = weightLogs[1].weight;
       weightChange = latestWeight - previousWeight;
     }
-    setState(() {
-      _latestWeight = latestWeight;
-      _weightChange = weightChange;
-    });
+    setState(() { _latestWeight = latestWeight; _weightChange = weightChange; });
   }
 
   Future<void> _loadWorkoutData() async {
@@ -151,7 +155,76 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
       ),
     );
   }
+//新增
+void _startTodayWorkout() {
+    final itemsForSelectedDay = _planItems[_selectedDayOnCard] ?? [];
+    if (itemsForSelectedDay.isEmpty) return;
 
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          // 限制高度，避免列表太長
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.5,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Center(
+                child: Text(
+                  '請選擇要開始的動作',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: itemsForSelectedDay.length,
+                  itemBuilder: (context, index) {
+                    final item = itemsForSelectedDay[index];
+                    return ListTile(
+                      leading: CircleAvatar(
+                        child: Text('${index + 1}'),
+                        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      ),
+                      title: Text(item.exerciseName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text('${item.sets} 組 x ${item.weight} kg'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        // 選擇後，關閉選單並跳轉
+                        Navigator.pop(context);
+                          final selectedItem = itemsForSelectedDay[index];
+                          List<PlanItem> reorderedList = [selectedItem];
+                          reorderedList.addAll(
+                          itemsForSelectedDay.where((element) => element != selectedItem)
+                        );
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TrainingSessionPage(
+                              planItems: reorderedList, // 傳入重新排序後的清單
+                              bodyPart: BodyPart.chest, // 預設
+                              initialIndex: 0, // 永遠從第一個開始
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -325,6 +398,8 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
 
    final itemsForSelectedDay = _planItems[_selectedDayOnCard] ?? [];
 
+  final isTodaySelected = _selectedDayOnCard == DateTime.now().weekday;
+  final showStartButton = isTodaySelected && itemsForSelectedDay.isNotEmpty;
     return Card(
       child: InkWell(
         onTap: () async {
@@ -403,6 +478,22 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
                           );
                         }).toList(),
                       ),
+                  if (showStartButton) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _startTodayWorkout,
+                          icon: const Icon(Icons.play_arrow),
+                          label: const Text('開始今日訓練'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green, // 用綠色凸顯
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
             ],
