@@ -5,13 +5,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../models/weight_log_model.dart';
+import '../models/workout_log_model.dart';
 import '../models/user_model.dart';
-import '../models/plan_item_model.dart';
 import '../models/plan_item_model.dart';
 import '../services/database_helper.dart';
 import './weight_trend_page.dart';
 import '../models/exercise_model.dart';
-import './plan_editor_page.dart'; 
+import './plan_editor_page.dart';
 import './training_session_page.dart';
 
 class DashboardHomePage extends StatefulWidget {
@@ -29,10 +29,10 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
   int _workoutsThisWeek = 0;
   Map<BodyPart, double> _bodyPartDistribution = {};
   
-// 【新增】課表相關狀態
+  // 課表相關
   Map<int, List<PlanItem>> _planItems = {};
   int? _selectedDayOnCard;
-  List<PlanItem> _todayPlanItems = []; //今天的課表項目
+  List<PlanItem> _todayPlanItems = []; 
 
   final Map<BodyPart, Color> _bodyPartColors = {
     BodyPart.chest: Colors.blue.shade400,
@@ -55,15 +55,14 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     if (mounted) {
       setState(() {
         _currentUser = user;
-        // 預設今天 否則跳到下一個訓練日
-       if (user?.trainingDays != null && user!.trainingDays!.isNotEmpty) {
+        if (user?.trainingDays != null && user!.trainingDays!.isNotEmpty) {
            final todayWeekday = DateTime.now().weekday;
            final trainingDays = user.trainingDays!.split(',').map(int.parse).toList();
            if (trainingDays.contains(todayWeekday)) {
              _selectedDayOnCard = todayWeekday;
            } else if (trainingDays.isNotEmpty) {
              _selectedDayOnCard = trainingDays.first;
-        }
+           }
         }
       });
     }
@@ -71,16 +70,16 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     await Future.wait([
       _loadWeightData(),
       _loadWorkoutData(),
-      _loadAllPlanItems(), // 【新增】同時載入課表
+      _loadAllPlanItems(),
     ]);
   }
-
+  
   Future<void> _loadAllPlanItems() async {
     Map<int, List<PlanItem>> items = {};
     for (int i = 1; i <= 7; i++) {
       items[i] = await DatabaseHelper.instance.getPlanItemsForDay(i);
     }
-      //檢查課表
+    
     final todayWeekday = DateTime.now().weekday;
     final todayItems = items[todayWeekday] ?? [];
 
@@ -91,7 +90,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
       });
     }
   }
-  
+
   Future<void> _loadWeightData() async {
     final weightLogs = await DatabaseHelper.instance.getWeightLogs();
     if (!mounted) return;
@@ -111,52 +110,41 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
   Future<void> _loadWorkoutData() async {
     final workoutLogs = await DatabaseHelper.instance.getWorkoutLogs();
     if (!mounted) return;
-
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(const Duration(days: 7));
-
     final thisWeekLogs = workoutLogs.where((log) {
       final completedAt = log.completedAt;
       return (completedAt.isAfter(startOfWeek) || completedAt.isAtSameMomentAs(startOfWeek)) && completedAt.isBefore(endOfWeek);
     }).toList();
-    
     if (thisWeekLogs.isEmpty) {
-      setState(() {
-        _workoutsThisWeek = 0;
-        _bodyPartDistribution = {};
-      });
+      setState(() { _workoutsThisWeek = 0; _bodyPartDistribution = {}; });
       return;
     }
-
     Map<BodyPart, int> counts = {};
     for (var log in thisWeekLogs) {
       counts[log.bodyPart] = (counts[log.bodyPart] ?? 0) + 1;
     }
-
     Map<BodyPart, double> distribution = {};
     counts.forEach((part, count) {
       distribution[part] = (count / thisWeekLogs.length) * 100;
     });
-
-    setState(() {
-      _workoutsThisWeek = thisWeekLogs.length;
-      _bodyPartDistribution = distribution;
-    });
+    setState(() { _workoutsThisWeek = thisWeekLogs.length; _bodyPartDistribution = distribution; });
   }
 
   Future<void> _showAddWeightDialog() async {
     return showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) => _AddWeightDialog(
+        account: widget.account, 
         onSave: () {
           _loadAllData();
         },
       ),
     );
   }
-//新增
-void _startTodayWorkout() {
+
+  void _startTodayWorkout() {
     final itemsForSelectedDay = _planItems[_selectedDayOnCard] ?? [];
     if (itemsForSelectedDay.isEmpty) return;
 
@@ -168,7 +156,6 @@ void _startTodayWorkout() {
       builder: (context) {
         return Container(
           padding: const EdgeInsets.all(16.0),
-          // 限制高度，避免列表太長
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.5,
           ),
@@ -195,22 +182,23 @@ void _startTodayWorkout() {
                       ),
                       title: Text(item.exerciseName, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text('${item.sets} 組 x ${item.weight} kg'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      trailing: const Icon(Icons.play_arrow, size: 20, color: Colors.green),
                       onTap: () {
-                        // 選擇後，關閉選單並跳轉
                         Navigator.pop(context);
-                          final selectedItem = itemsForSelectedDay[index];
-                          List<PlanItem> reorderedList = [selectedItem];
-                          reorderedList.addAll(
+                        
+                        final selectedItem = itemsForSelectedDay[index];
+                        List<PlanItem> reorderedList = [selectedItem];
+                        reorderedList.addAll(
                           itemsForSelectedDay.where((element) => element != selectedItem)
                         );
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => TrainingSessionPage(
-                              planItems: reorderedList, // 傳入重新排序後的清單
-                              bodyPart: BodyPart.chest, // 預設
-                              initialIndex: 0, // 永遠從第一個開始
+                              planItems: reorderedList,
+                              bodyPart: BodyPart.chest,
+                              initialIndex: 0,
                             ),
                           ),
                         );
@@ -225,17 +213,13 @@ void _startTodayWorkout() {
       },
     );
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('首頁'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAllData,
-          ),
-        ],
+        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _loadAllData)],
       ),
       body: RefreshIndicator(
         onRefresh: _loadAllData,
@@ -256,56 +240,9 @@ void _startTodayWorkout() {
   Widget _buildWorkoutSummaryCard() {
     final List<PieChartSectionData> sections = [];
     _bodyPartDistribution.forEach((part, percentage) {
-      sections.add(
-        PieChartSectionData(
-          color: _bodyPartColors[part] ?? Colors.grey,
-          value: percentage,
-          title: '${percentage.toStringAsFixed(0)}%',
-          radius: 30,
-          titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-      );
+      sections.add(PieChartSectionData(color: _bodyPartColors[part] ?? Colors.grey, value: percentage, title: '${percentage.toStringAsFixed(0)}%', radius: 30, titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)));
     });
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('本週訓練摘要', style: TextStyle(fontSize: 16, color: Colors.grey.shade400)),
-                  const SizedBox(height: 8),
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: '$_workoutsThisWeek', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-                        const TextSpan(text: ' 次', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(
-              height: 80,
-              width: 80,
-              child: sections.isEmpty
-                  ? Center(child: Text('本週\n無紀錄', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400)))
-                  : PieChart(
-                      PieChartData(
-                        sections: sections,
-                        centerSpaceRadius: 20,
-                        sectionsSpace: 2,
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return Card(child: Padding(padding: const EdgeInsets.all(16.0), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('本週訓練摘要', style: TextStyle(fontSize: 16, color: Colors.grey.shade400)), const SizedBox(height: 8), Text.rich(TextSpan(children: [TextSpan(text: '$_workoutsThisWeek', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)), const TextSpan(text: ' 次', style: TextStyle(color: Colors.grey, fontSize: 16))]))])), SizedBox(height: 80, width: 80, child: sections.isEmpty ? Center(child: Text('本週\n無紀錄', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400))) : PieChart(PieChartData(sections: sections, centerSpaceRadius: 20, sectionsSpace: 2)))])));
   }
 
   Widget _buildWeightSummaryCard() {
@@ -313,76 +250,7 @@ void _startTodayWorkout() {
     final changeColor = (changeValue == null || changeValue == 0) ? Colors.grey : (changeValue > 0 ? Colors.red.shade400 : Colors.green.shade400);
     final changeIcon = (changeValue == null || changeValue == 0) ? Icons.remove : (changeValue > 0 ? Icons.arrow_upward : Icons.arrow_downward);
     final changeText = changeValue != null ? changeValue.abs().toStringAsFixed(1) : '-';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => WeightTrendPage(account: widget.account)),
-                  );
-                  _loadAllData();
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('體重', style: TextStyle(fontSize: 16, color: Colors.grey)),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.baseline,
-                            textBaseline: TextBaseline.alphabetic,
-                            children: [
-                              Text(
-                                _latestWeight?.toStringAsFixed(1) ?? '--',
-                                style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(width: 4),
-                              const Text('kg', style: TextStyle(color: Colors.grey)),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              Icon(changeIcon, color: changeColor, size: 20),
-                              const SizedBox(width: 4),
-                              Text(
-                                changeText,
-                                style: TextStyle(color: changeColor, fontSize: 20, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withAlpha(50),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: Icon(Icons.add, color: Theme.of(context).colorScheme.primary),
-                onPressed: _showAddWeightDialog,
-                tooltip: '記錄體重',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    return Card(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), child: Row(children: [Expanded(child: InkWell(onTap: () async { await Navigator.push(context, MaterialPageRoute(builder: (context) => WeightTrendPage(account: widget.account))); _loadAllData(); }, child: Padding(padding: const EdgeInsets.symmetric(vertical: 8.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('體重', style: TextStyle(fontSize: 16, color: Colors.grey)), const SizedBox(height: 8), Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [Text(_latestWeight?.toStringAsFixed(1) ?? '--', style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold)), const SizedBox(width: 4), const Text('kg', style: TextStyle(color: Colors.grey))]), Row(children: [Icon(changeIcon, color: changeColor, size: 20), const SizedBox(width: 4), Text(changeText, style: TextStyle(color: changeColor, fontSize: 20, fontWeight: FontWeight.bold))])])])))), Container(margin: const EdgeInsets.only(left: 8), decoration: BoxDecoration(color: Theme.of(context).colorScheme.primary.withAlpha(50), shape: BoxShape.circle), child: IconButton(icon: Icon(Icons.add, color: Theme.of(context).colorScheme.primary), onPressed: _showAddWeightDialog, tooltip: '記錄體重'))])));
   }
 
   Widget _buildMyPlansSection() {
@@ -396,10 +264,11 @@ void _startTodayWorkout() {
           .toList()..sort();
     }
 
-   final itemsForSelectedDay = _planItems[_selectedDayOnCard] ?? [];
+    final itemsForSelectedDay = _planItems[_selectedDayOnCard] ?? [];
+    
+    final isTodaySelected = _selectedDayOnCard == DateTime.now().weekday;
+    final showStartButton = isTodaySelected && itemsForSelectedDay.isNotEmpty;
 
-  final isTodaySelected = _selectedDayOnCard == DateTime.now().weekday;
-  final showStartButton = isTodaySelected && itemsForSelectedDay.isNotEmpty;
     return Card(
       child: InkWell(
         onTap: () async {
@@ -417,7 +286,6 @@ void _startTodayWorkout() {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 標題和編輯按鈕
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -427,19 +295,11 @@ void _startTodayWorkout() {
               ),
               const SizedBox(height: 16),
               
-              // 如果沒有設定練習日
               if (trainingDays.isEmpty)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24.0),
-                    child: Text('尚未設定練習日', style: TextStyle(color: Colors.grey, fontSize: 16)),
-                  ),
-                )
+                const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 24.0), child: Text('尚未設定練習日', style: TextStyle(color: Colors.grey, fontSize: 16))))
               else
-                // 如果已設定練習日
                 Column(
                   children: [
-                    // 1. 星期選擇器
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: ToggleButtons(
@@ -455,14 +315,9 @@ void _startTodayWorkout() {
                       ),
                     ),
                     const Divider(height: 24),
-                    // 2. 課表內容
+                    
                     if (itemsForSelectedDay.isEmpty)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16.0),
-                          child: Text('這天沒有安排動作', style: TextStyle(color: Colors.grey)),
-                        ),
-                      )
+                      const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 16.0), child: Text('這天沒有安排動作', style: TextStyle(color: Colors.grey))))
                     else
                       Column(
                         children: itemsForSelectedDay.map((item) {
@@ -478,7 +333,8 @@ void _startTodayWorkout() {
                           );
                         }).toList(),
                       ),
-                  if (showStartButton) ...[
+
+                    if (showStartButton) ...[
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -487,7 +343,7 @@ void _startTodayWorkout() {
                           icon: const Icon(Icons.play_arrow),
                           label: const Text('開始今日訓練'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green, // 用綠色凸顯
+                            backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
@@ -506,7 +362,8 @@ void _startTodayWorkout() {
 
 class _AddWeightDialog extends StatefulWidget {
   final VoidCallback onSave;
-  const _AddWeightDialog({required this.onSave});
+  final String account;
+  const _AddWeightDialog({required this.onSave, required this.account});
 
   @override
   State<_AddWeightDialog> createState() => _AddWeightDialogState();
@@ -577,18 +434,30 @@ class _AddWeightDialogState extends State<_AddWeightDialog> {
               final navigator = Navigator.of(context);
               final messenger = ScaffoldMessenger.of(context);
 
-              final weight = double.parse(_weightController.text);
+              final weightVal = double.parse(_weightController.text);
+
+              // 1. 檢查並刪除當天舊紀錄 (實現覆蓋)
+              await DatabaseHelper.instance.deleteWeightLogsForDate(_selectedDate);
+
+              // 2. 插入新紀錄
               final newLog = WeightLog(
-                weight: weight,
+                weight: weightVal,
                 createdAt: _selectedDate,
               );
               await DatabaseHelper.instance.insertWeightLog(newLog);
+
+              // 3. 同步更新 User 表格
+              final user = await DatabaseHelper.instance.getUserByAccount(widget.account);
+              if (user != null) {
+                final updatedUser = user.copyWith(weight: weightVal.toString());
+                await DatabaseHelper.instance.updateUser(updatedUser);
+              }
 
               if (!mounted) return;
               navigator.pop();
               messenger.showSnackBar(
                 const SnackBar(
-                  content: Text('體重紀錄已儲存！'),
+                  content: Text('體重紀錄已更新！'),
                   backgroundColor: Colors.green,
                 ),
               );

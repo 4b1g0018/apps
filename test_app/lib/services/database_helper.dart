@@ -208,6 +208,17 @@ Future<void> _createTables(Database db, int version) async {
     return List.generate(maps.length, (i) => WeightLog.fromMap(maps[i]));
   }
 
+  Future<void> deleteWeightLogsForDate(DateTime date) async {
+    final db = await instance.db;
+    final dateStr = date.toIso8601String().substring(0, 10); // 取前10位 "yyyy-MM-dd"
+    
+    await db.delete(
+      'weight_logs',
+      where: 'createdAt LIKE ?',
+      whereArgs: ['$dateStr%'], // 匹配該日期的所有時間
+    );
+  }
+
   // --- SetLog 相關方法 ---
   Future<void> insertSetLog(SetLog log) async {
     final db = await instance.db;

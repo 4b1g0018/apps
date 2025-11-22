@@ -295,13 +295,17 @@ class _SettingsPageState extends State<SettingsPage> {
                   leading: const Icon(Icons.person_outline),
                   title: const Text('個人資料修改'),
                   trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                  onTap: () => Navigator.push(
+                  onTap: () async {
+                    // 【修改】等待 ProfilePage 回傳結果
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                           builder: (context) =>
-                              ProfilePage(account: widget.account))),
+                              ProfilePage(account: widget.account)),
+                    );
+                  },
                 ),
-              ],
+              ], 
             ),
             const SizedBox(height: 24),
             _buildSettingsGroup(
@@ -377,7 +381,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
           ],
-        ),
+        ), 
       ),
     );
   }
