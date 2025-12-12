@@ -81,14 +81,42 @@ class _SettingsPageState extends State<SettingsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('還原雲端資料'),
-        content: const Text('將從雲端下載資料並合併到本機。\n系統會自動過濾重複的資料。'),
-        actions: [
-          TextButton(child: const Text('取消'), onPressed: () => Navigator.pop(context, false)),
-          TextButton(child: const Text('開始還原'), onPressed: () => Navigator.pop(context, true)),
-        ],
+        titlePadding: EdgeInsets.zero,
+        contentPadding: EdgeInsets.zero,
+        actionsPadding: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
+        content: SizedBox(
+          width: 270,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24.0),
+                child: Text('還原雲端資料', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 20.0, left: 16.0, right: 16.0),
+                child: Text('將從雲端下載資料並合併到本機。\n系統會自動過濾重複的資料。', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, height: 1.5)),
+              ),
+              const Divider(height: 1),
+              _buildDialogButton(
+                text: '開始還原',
+                color: Colors.blue,
+                isBold: true,
+                onPressed: () => Navigator.pop(context, true),
+              ),
+              const Divider(height: 1),
+              _buildDialogButton(
+                text: '取消',
+                onPressed: () => Navigator.pop(context, false),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+    
+    if (confirm != true) return;
 
     try {
       // 1. 讀取雲端資料

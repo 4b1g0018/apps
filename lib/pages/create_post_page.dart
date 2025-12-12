@@ -4,6 +4,7 @@ import 'dart:convert'; // 【新增】用於轉碼
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart'; // 【新增】
 import '../services/firestore_service.dart';
 
 class CreatePostPage extends StatefulWidget {
@@ -20,6 +21,20 @@ class _CreatePostPageState extends State<CreatePostPage> {
   
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
+  DateTime _selectedDate = DateTime.now(); // 【新增】
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      locale: const Locale('zh', 'TW'), // Ensure Chinese locale
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
+  }
 
   @override
   void dispose() {
@@ -82,6 +97,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
         title: title,
         content: content,
         imageBase64: imageBase64,
+        customDate: _selectedDate, // 【新增】
       );
 
       if (!mounted) return;
@@ -144,6 +160,32 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       )
                     : null,
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          // 【新增】日期選擇區塊
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade800),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today, color: Colors.white70, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  DateFormat('yyyy/MM/dd').format(_selectedDate),
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: _pickDate,
+                  child: const Text('更換日期', style: TextStyle(color: Colors.blueAccent)),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 24),

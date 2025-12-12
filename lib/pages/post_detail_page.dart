@@ -36,27 +36,62 @@ class PostDetailPage extends StatelessWidget {
                 showDialog(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: const Color(0xFF1C1C1E),
-                    title: const Text('刪除貼文', style: TextStyle(color: Colors.white)),
-                    content: const Text('確定要刪除這篇貼文嗎？此動作無法復原。', style: TextStyle(color: Colors.white70)),
-                    actions: [
-                      TextButton(
-                        child: const Text('取消', style: TextStyle(color: Colors.grey)),
-                        onPressed: () => Navigator.pop(ctx),
+                    titlePadding: EdgeInsets.zero,
+                    contentPadding: EdgeInsets.zero,
+                    actionsPadding: EdgeInsets.zero,
+                    backgroundColor: const Color(0xFF2C2C2E), // Match SettingsPage dialog color
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
+                    content: SizedBox(
+                      width: 270,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24.0),
+                            child: Text('確認刪除', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 20.0, left: 16.0, right: 16.0),
+                            child: Text('確定要刪除這篇貼文嗎？\n此動作無法復原。', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey.shade400)),
+                          ),
+                          Divider(height: 1, color: Colors.grey.shade700),
+                          SizedBox(
+                            width: double.infinity, height: 50,
+                            child: TextButton(
+                              child: Text('刪除', style: TextStyle(color: Colors.red.shade400, fontSize: 17, fontWeight: FontWeight.bold)),
+                              onPressed: () async {
+                                Navigator.pop(ctx); 
+                                if (postData['postId'] != null) {
+                                  try {
+                                    await FirestoreService.instance.deletePost(postData['postId']);
+                                    if (context.mounted) {
+                                       ScaffoldMessenger.of(context).showSnackBar(
+                                         const SnackBar(content: Text('貼文刪除成功'), backgroundColor: Colors.green)
+                                       );
+                                       Navigator.pop(context); // Close Detail Page
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                       ScaffoldMessenger.of(context).showSnackBar(
+                                         SnackBar(content: Text('刪除失敗: $e'), backgroundColor: Colors.red)
+                                       );
+                                    }
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                          Divider(height: 1, color: Colors.grey.shade700),
+                          SizedBox(
+                            width: double.infinity, height: 50,
+                            child: TextButton(
+                              child: const Text('取消', style: TextStyle(fontSize: 17, color: Colors.blueAccent)), // Use Blue for Cancel/Safe
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ),
+                        ],
                       ),
-                      TextButton(
-                        child: const Text('刪除', style: TextStyle(color: Colors.redAccent)),
-                        onPressed: () async {
-                          Navigator.pop(ctx); 
-                          if (postData['postId'] != null) {
-                            await FirestoreService.instance.deletePost(postData['postId']);
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                            }
-                          }
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 );
               },

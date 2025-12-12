@@ -149,7 +149,12 @@ class FirestoreService {
     }
   }
 
-  Future<void> addPost({required String title, required String content, String? imageBase64}) async {
+  Future<void> addPost({
+    required String title,
+    required String content,
+    String? imageBase64,
+    DateTime? customDate, // 【新增】
+  }) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -168,7 +173,7 @@ class FirestoreService {
       'title': title,
       'content': content,
       'imageUrl': imageBase64 ?? '',
-      'timestamp': FieldValue.serverTimestamp(),
+      'timestamp': customDate != null ? Timestamp.fromDate(customDate) : FieldValue.serverTimestamp(), // 【修正】
       'likeCount': 0,
       'commentCount': 0,
     });

@@ -246,35 +246,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
     );
   }
 
-  Future<void> _editHometown() async {
-    if (!_isMe || _displayUser == null) return;
-    final hometownController = TextEditingController(text: _displayUser!.hometown ?? '');
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
-        title: const Text('設定家鄉', style: TextStyle(color: Colors.white)),
-        content: TextFormField(
-          controller: hometownController,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(labelText: '家鄉', labelStyle: TextStyle(color: Colors.grey)),
-        ),
-        actions: [
-          TextButton(child: const Text('取消'), onPressed: () => Navigator.pop(dialogContext)),
-          TextButton(
-            child: const Text('儲存'),
-            onPressed: () async {
-              final updatedUser = _displayUser!.copyWith(hometown: hometownController.text);
-              await DatabaseHelper.instance.updateUser(updatedUser);
-              await FirestoreService.instance.syncUserData(hometown: hometownController.text);
-              _loadDisplayUserData();
-              if (dialogContext.mounted) Navigator.pop(dialogContext);
-            },
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildRealWeekHistory() {
     // 如果不是本人，可以顯示歷史貼文，只要有 UID
@@ -475,19 +447,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
             ]),
             const SizedBox(height: 8),
             
-            GestureDetector(
-              onTap: _isMe ? _editHometown : null,
-              child: Row(children: [
-                const Icon(Icons.info_outline, size: 16, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(
-                  _displayUser?.hometown != null && _displayUser!.hometown!.isNotEmpty 
-                      ? '家鄉 : ${_displayUser!.hometown}' 
-                      : (_isMe ? '家鄉 : +新增' : '家鄉 : 未設定'), 
-                  style: TextStyle(color: Colors.grey.shade400, fontSize: 14)
-                ),
-              ]),
-            ),
+
             
             const SizedBox(height: 32),
             const Text('已上傳貼文歷史', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
