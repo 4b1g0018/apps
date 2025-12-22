@@ -8,6 +8,7 @@ import '../services/database_helper.dart';
 import '../services/firestore_service.dart'; 
 import '../models/user_model.dart'; 
 import '../models/weight_log_model.dart';
+import '../services/mock_data_service.dart'; // 【新增】
 import '../main.dart';
 
 
@@ -212,6 +213,45 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  void _handleGuestLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      final user = await AuthService.instance.signInAnonymously();
+      if (user == null) throw Exception("無法以訪客身分登入");
+
+      final account = user.uid; 
+
+      var localUser = await DatabaseHelper.instance.getUserByAccount(account);
+
+      if (localUser == null) {
+         await DatabaseHelper.instance.insertUser({
+            'account': account,
+            'password': 'guest_user', 
+            'height': '170', 'weight': '60', 'age': '30', 'bmi': '20',
+            'gender': 'male', 'bmr': '1500',
+            'nickname': '訪客',
+            'hometown': '未知',
+         });
+         
+         // 【新增】產生模擬數據
+         await MockDataService.generateGuestData(account);
+
+      }
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => MainAppShell(account: account)),
+      );
+
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('訪客登入失敗: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -296,7 +336,26 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: _isLoading ? null : _handleGuestLogin,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white54),
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        '不想註冊？以訪客身分繼續', 
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),

@@ -1,6 +1,11 @@
 // lib/services/mock_data_service.dart
 
+import 'dart:math';
 import '../models/exercise_model.dart';
+import '../models/weight_log_model.dart';
+import '../models/workout_log_model.dart';
+import '../models/set_log_model.dart';
+import '../services/database_helper.dart';
 
 class MockDataService {
   // 1. OpenPose 支援的動作 (用於選單顯示)
@@ -82,4 +87,70 @@ class MockDataService {
     }
     return null;
   }
+
+  // --- Mock Data Generation ---
+  
+  static Future<void> generateGuestData(String account) async {
+    final now = DateTime.now();
+    final random = Random();
+    
+    // 1. 生成過去 30 天的體重資料 (模擬波動)
+    double currentWeight = 60.0;
+    for (int i = 30; i >= 0; i--) {
+       if (i % 3 == 0) { // 每 3 天紀錄一次
+         final date = now.subtract(Duration(days: i));
+         // 隨機波動 -0.5 ~ +0.5
+         currentWeight += (random.nextDouble() - 0.5); 
+         await DatabaseHelper.instance.insertWeightLog(
+           WeightLog(
+             weight: double.parse(currentWeight.toStringAsFixed(1)),
+             createdAt: date,
+             account: account,
+           ),
+           syncToCloud: false, // 訪客不需同步雲端
+         );
+       }
+    }
+
+    // 2. 生成過去 14 天的運動紀錄
+    final exercises = [
+      '槓鈴臥推', '深蹲', '硬舉', '啞鈴肩推', '引體向上'
+    ];
+    
+    for (int i = 14; i >= 0; i--) {
+      // 每一天有 50% 機率有運動
+      if (random.nextBool()) {
+        final date = now.subtract(Duration(days: i));
+        final exerciseName = exercises[random.nextInt(exercises.length)];
+        final bodyPart = getBodyPartByName(exerciseName) ?? BodyPart.chest;
+        
+        // 建立 WorkoutLog
+        final workoutLog = WorkoutLog(
+           exerciseName: exerciseName,
+           totalSets: 3,
+           completedAt: date,
+           bodyPart: bodyPart, // 【修正】直接傳入 BodyPart enum
+           account: account,
+           calories: 100 + random.nextInt(200).toDouble(),
+           avgHeartRate: 110 + random.nextInt(40),
+           maxHeartRate: 150 + random.nextInt(40),
+        );
+        
+        int logId = await DatabaseHelper.instance.insertWorkoutLog(workoutLog, syncToCloud: false);
+        
+        // 建立 SetLog (3組)
+        for (int set = 1; set <= 3; set++) {
+          await DatabaseHelper.instance.insertSetLog(
+            SetLog(
+              workoutLogId: logId, 
+              setNumber: set, 
+              weight: 20.0 + random.nextInt(40), 
+              reps: 8 + random.nextInt(5)
+            )
+          );
+        }
+      }
+    }
+  }
+
 }

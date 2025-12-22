@@ -47,6 +47,20 @@ class AuthService {
     }
   }
 
+  // 匿名登入
+  Future<fbAuth.User?> signInAnonymously() async {
+    try {
+      final credential = await _auth.signInAnonymously();
+      return credential.user;
+    } on fbAuth.FirebaseAuthException catch (e) {
+      debugPrint('匿名登入失敗: ${e.message}');
+      rethrow;
+    } catch (e) {
+      debugPrint('匿名登入發生未知錯誤: $e');
+      rethrow;
+    }
+  }
+
   // 登出
   Future<void> signOut() async {
     await _auth.signOut();

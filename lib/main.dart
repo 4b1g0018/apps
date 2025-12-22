@@ -1,6 +1,7 @@
 // 設定主題與底部導覽列
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 【新增】
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'; // 【新增】
@@ -148,21 +149,28 @@ class MainAppShell extends StatefulWidget {
   State<MainAppShell> createState() => _MainAppShellState();
 }
 
+
+
 class _MainAppShellState extends State<MainAppShell> {
   int _selectedIndex = 0;
+  bool _isGuest = false; // 【新增】
 
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+    
+    // 檢查是否為訪客
+    _isGuest = FirebaseAuth.instance.currentUser?.isAnonymous ?? false;
+
     _pages = <Widget>[
       DashboardHomePage(account: widget.account),
       const SelectPartPage(),
       WorkoutHistoryPage(account: widget.account),
       
-      // 【修改】直接使用 CommunityProfilePage 作為第四個分頁
-      CommunityProfilePage(account: widget.account),
+      // 【修改】訪客不顯示社群頁面
+      if (!_isGuest) CommunityProfilePage(account: widget.account),
       
       SettingsPage(account: widget.account),
     ];
@@ -182,29 +190,30 @@ class _MainAppShellState extends State<MainAppShell> {
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
+        items: <BottomNavigationBarItem>[
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
             label: '首頁',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.fitness_center_outlined),
             activeIcon: Icon(Icons.fitness_center),
             label: '開始訓練',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today_outlined),
             activeIcon: Icon(Icons.calendar_today),
             label: '日曆',
           ),
-          // 【修改】將「建議課程」(燈泡) 改為「社群」(人群)
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_search_outlined), // 未選中圖示
-            activeIcon: Icon(Icons.person_search_outlined), // 選中圖示
-            label: '搜尋',
-          ),
-          BottomNavigationBarItem(
+          // 【修改】訪客不顯示搜尋選項
+          if (!_isGuest)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.person_search_outlined), 
+              activeIcon: Icon(Icons.person_search_outlined), 
+              label: '搜尋',
+            ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
             label: '設定',
