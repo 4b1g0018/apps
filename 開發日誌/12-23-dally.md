@@ -16,9 +16,3 @@
 *   **條件式顯示**：
     *   修改 `WorkoutHistoryPage`，現在只有當 `totalCalories > 0` 時才會顯示「今日消耗熱量」區塊。
     *   這確保了只有在使用 Apple Watch (提供心率數據) 進行訓練時才顯示熱量，手動補登的紀錄則自動隱藏該區塊，符合使用者「有連結裝置才算熱量」的需求。
-
-## 3. 專案建置與發布 (Build & Deploy)
-*   **Android APK 建置嘗試**：
-    *   嘗試執行 `flutter build apk --release`。
-    *   遭遇 **Gradle 8.12** 與 **AGP 8.9.1** (Alpha/Beta levels) 的相容性問題，導致獨立 APK 建置失敗。
-    *   **決策**：為了不影響現有 `flutter run` 的開發穩定性，決定回退所有 Gradle 版本更動，保持開發環境正常運作。確認 iOS/Android 連接手機除錯功能皆正常。
