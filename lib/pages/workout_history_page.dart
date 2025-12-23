@@ -3,10 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'dart:math'; // Added for RingPainter
 
 import '../models/workout_log_model.dart';
 import '../models/exercise_model.dart';
+import '../models/set_log_model.dart';
 import '../services/database_helper.dart';
+import './manual_workout_log_page.dart';
 
 class WorkoutHistoryPage extends StatefulWidget {
   final String account;
@@ -127,7 +130,11 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                             markerBuilder: (context, date, events) {
                               if (events.isNotEmpty) {
                                 final colors = events.map((log) => _getColorForBodyPart(log.bodyPart)).toSet().toList();
-                                return Positioned(bottom: 1, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: colors.map((color) => Container(margin: const EdgeInsets.symmetric(horizontal: 1.5), width: 7, height: 7, decoration: BoxDecoration(shape: BoxShape.circle, color: color))).toList()));
+                                return Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: _RingPainter(colors: colors),
+                                  ),
+                                );
                               }
                               return null;
                             },
@@ -165,24 +172,70 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
                 final log = selectedLogs[logIndex];
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Card(
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: _getColorForBodyPart(log.bodyPart),
-                        child: Text('${log.totalSets}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(log.exerciseName),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('完成於: ${DateFormat('HH:mm').format(log.completedAt)}'),
-                          if (log.calories > 0)
-                            Text(
-                              '心率: ${log.avgHeartRate} avg / ${log.maxHeartRate} max',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  child: Dismissible(
+                    key: Key(log.id.toString()),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20.0),
+                      color: Colors.red,
+                      child: const Icon(Icons.delete, color: Colors.white),
+                    ),
+                    confirmDismiss: (direction) async {
+                      return await showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: const Text("確認刪除"),
+                            content: const Text("確定要刪除這筆訓練紀錄嗎？"),
+                            actions: <Widget>[
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: const Text("取消"),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(true),
+                                child: const Text("刪除", style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    },
+                    onDismissed: (direction) async {
+                      await DatabaseHelper.instance.deleteWorkoutLog(log.id!);
+                      _refreshLogs(); // Refresh logic is local
+                    },
+                    child: Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: _getColorForBodyPart(log.bodyPart),
+                          child: FittedBox(
+                            child: Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Text('${log.totalSets}組', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                             ),
-                        ],
+                          ),
+                        ),
+                        title: Text(log.exerciseName),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('完成於: ${DateFormat('HH:mm').format(log.completedAt)}'),
+                            const SizedBox(height: 4),
+                            _SetsDisplayWidget(workoutLogId: log.id!),
+                            if (log.calories > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  '心率: ${log.avgHeartRate} avg / ${log.maxHeartRate} max',
+                                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -191,6 +244,22 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
             ),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.blue.shade900, // 深藍色
+        onPressed: () async {
+          // 跳轉到手動新增頁面
+          final result = await Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => ManualWorkoutLogPage(account: widget.account))
+          );
+          // 如果有新增成功 (回傳 true)，則更新列表
+          if (result == true) {
+            _refreshLogs();
+          }
+        },
+        label: const Text('加入紀錄', style: TextStyle(color: Colors.white)),
+        icon: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -226,6 +295,11 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
     double totalCalories = 0;
     for (var log in logs) {
       totalCalories += log.calories;
+    }
+
+    // Only show if calories > 0 (implies Watch connected/Heart Rate available)
+    if (totalCalories <= 0) {
+      return const SizedBox.shrink();
     }
 
     return Card(
@@ -286,5 +360,97 @@ class _WorkoutHistoryPageState extends State<WorkoutHistoryPage> {
         );
       },
     );
+  }
+}
+
+// Helper widget to display sets for a workout log
+class _SetsDisplayWidget extends StatelessWidget {
+  final int workoutLogId;
+  const _SetsDisplayWidget({required this.workoutLogId});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<SetLog>>(
+      future: DatabaseHelper.instance.getSetLogsForWorkout(workoutLogId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final sets = snapshot.data!;
+        // Format: "100kg x 10, 100kg x 8"
+        final textParts = sets.map((s) {
+          final w = s.weight % 1 == 0 ? s.weight.toInt().toString() : s.weight.toString();
+          return '$w kg x ${s.reps}';
+        }).toList();
+
+        return Wrap(
+          spacing: 8.0,
+          runSpacing: 4.0,
+          children: textParts.map((t) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3C3C3E), // Darker grey for dark mode
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.grey.shade700, width: 0.5),
+            ),
+            child: Text(t, style: const TextStyle(fontSize: 12, color: Colors.white)),
+          )).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final List<Color> colors;
+
+  _RingPainter({required this.colors});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (colors.isEmpty) return;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    // Radius should be slightly larger than the text background circle
+    final radius = min(size.width, size.height) / 2 - 4; 
+    final strokeWidth = 3.0;
+
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    if (colors.length == 1) {
+      paint.color = colors.first;
+      canvas.drawCircle(center, radius, paint);
+    } else {
+      // Create a SweepGradient for multiple colors
+      final gradient = SweepGradient(
+        colors: [...colors, colors.first], // Wrap around
+        stops: _calculateStops(colors.length),
+      );
+      
+      paint.shader = gradient.createShader(Rect.fromCircle(center: center, radius: radius));
+      canvas.drawCircle(center, radius, paint);
+    }
+  }
+
+  List<double> _calculateStops(int count) {
+    // Generate stops [0.0, 1/N, 2/N, ... 1.0]
+    final stops = <double>[];
+    for (int i = 0; i <= count; i++) {
+      stops.add(i / count);
+    }
+    return stops;
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter oldDelegate) {
+    // Simple deep compare for list of colors
+    if (colors.length != oldDelegate.colors.length) return true;
+    for (int i=0; i<colors.length; i++) {
+      if (colors[i] != oldDelegate.colors[i]) return true;
+    }
+    return false;
   }
 }

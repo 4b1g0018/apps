@@ -234,6 +234,13 @@ class DatabaseHelper {
     return await db.delete('workout_logs', where: 'account = ?', whereArgs: [account]);
   }
 
+  Future<int> deleteWorkoutLog(int id) async {
+    final db = await instance.db;
+    // Also delete associated set_logs
+    await db.delete('set_logs', where: 'workoutLogId = ?', whereArgs: [id]);
+    return await db.delete('workout_logs', where: 'id = ?', whereArgs: [id]);
+  }
+
   // --- WeightLog 相關方法 ---
   Future<void> insertWeightLog(WeightLog log, {bool syncToCloud = true}) async {
     final db = await instance.db;
