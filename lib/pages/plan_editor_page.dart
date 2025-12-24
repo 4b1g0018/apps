@@ -7,6 +7,7 @@ import '../models/plan_item_model.dart';
 import '../models/exercise_model.dart';
 import '../models/custom_exercise.dart';
 import '../services/mock_data_service.dart';
+import '../services/firestore_service.dart'; // 【新增】
 
 
 class PlanEditorPage extends StatefulWidget {
@@ -74,6 +75,22 @@ class _PlanEditorPageState extends State<PlanEditorPage> {
 
     final updatedUser = _currentUser!.copyWith(trainingDays: trainingDaysString);
     await DatabaseHelper.instance.updateUser(updatedUser);
+    
+    // 【新增】同步到雲端
+    await FirestoreService.instance.syncUserData(trainingDays: trainingDaysString);
+
+    // 【新增】備份所有課表動作
+    try {
+      List<Map<String, dynamic>> allItems = [];
+      _planItems.forEach((day, items) {
+        for (var item in items) {
+          allItems.add(item.toMap());
+        }
+      });
+      await FirestoreService.instance.savePlanItems(allItems);
+    } catch (e) {
+      print('備份課表失敗: $e');
+    }
     
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('練習日已儲存！')));

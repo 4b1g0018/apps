@@ -17,7 +17,7 @@ class User {
   final String? trainingDays; // 【新增】儲存練習日 
 
   final String? nickname;
-  final String? hometown;
+  final bool isPublic; // 【新增】公開/不公開
   final String? photoUrl; // 【新增】大頭貼 Base64
 
   User({
@@ -34,7 +34,7 @@ class User {
     this.goalWeight,
     this.trainingDays, 
     this.nickname, 
-    this.hometown,
+    this.isPublic = true, // 預設公開
     this.photoUrl,
   });
 
@@ -53,7 +53,7 @@ class User {
       'goalWeight': goalWeight,
       'trainingDays': trainingDays, 
       'nickname': nickname, 
-      'hometown': hometown,
+      'isPublic': isPublic ? 1 : 0, // SQLite 存 int
       'photoUrl': photoUrl,
     };
   }
@@ -73,7 +73,7 @@ class User {
       goalWeight: map['goalWeight'],
       trainingDays: map['trainingDays'], 
       nickname: map['nickname'], 
-      hometown: map['hometown'],
+      isPublic: (map['isPublic'] is int) ? (map['isPublic'] == 1) : (map['isPublic'] ?? true),
       photoUrl: map['photoUrl'],
     );
   }
@@ -92,7 +92,7 @@ class User {
     String? goalWeight,
     String? trainingDays, 
     String? nickname, 
-    String? hometown,
+    bool? isPublic,
     String? photoUrl,
   }) {
     return User(
@@ -109,7 +109,7 @@ class User {
       goalWeight: goalWeight ?? this.goalWeight,
       trainingDays: trainingDays ?? this.trainingDays,
       nickname: nickname ?? this.nickname, 
-      hometown: hometown ?? this.hometown,
+      isPublic: isPublic ?? this.isPublic,
       photoUrl: photoUrl ?? this.photoUrl,
     );
   }

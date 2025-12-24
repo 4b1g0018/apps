@@ -24,7 +24,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'data.db');
     return await openDatabase(
       path,
-      version: 15, 
+      version: 16, 
       onCreate: _createTables,
       onUpgrade: _onUpgrade,
     );
@@ -37,7 +37,7 @@ class DatabaseHelper {
         account TEXT UNIQUE, password TEXT, height TEXT, weight TEXT,
         age TEXT, bmi TEXT, fat TEXT, gender TEXT, bmr TEXT,
         goalWeight TEXT, fitnessLevel TEXT, trainingDays TEXT,
-        nickname TEXT, hometown TEXT, photoUrl TEXT
+        nickname TEXT, hometown TEXT, photoUrl TEXT, isPublic INTEGER
       )
     ''');
     await db.execute('''
@@ -159,6 +159,9 @@ class DatabaseHelper {
     // 【修正】正確的括號結構
     if (oldVersion < 13) {
        try { await db.execute('ALTER TABLE weight_logs ADD COLUMN account TEXT'); } catch (_) {}
+    }
+    if (oldVersion < 16) {
+       try { await db.execute('ALTER TABLE users ADD COLUMN isPublic INTEGER DEFAULT 1'); } catch (_) {}
     }
   }
 

@@ -14,6 +14,7 @@ import './training_summary_page.dart';
 import '../services/database_helper.dart';
 import '../services/mock_data_service.dart';
 import '../services/pose_detector_service.dart';
+import '../services/firestore_service.dart'; // 【新增】
 import '../services/pose_detector_service.dart';
 import '../ui/pose_painter.dart';
 import '../utils/rep_counter.dart';
@@ -474,8 +475,10 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> with WidgetsB
     maxHeartRate: maxHr,
   );
   
-  final workoutLogId = await DatabaseHelper.instance.insertWorkoutLog(workoutLog);
+  final workoutLogId = await DatabaseHelper.instance.insertWorkoutLog(workoutLog, syncToCloud: false); // 【修改】暫不自動同步
     
+    List<SetLog> setsToSync = []; // 【新增】收集要同步的 sets
+
     for (var setData in _setsData) {
       final setLog = SetLog(
         workoutLogId: workoutLogId,
@@ -484,7 +487,11 @@ class _TrainingSessionPageState extends State<TrainingSessionPage> with WidgetsB
         reps: setData['reps'],
       );
       await DatabaseHelper.instance.insertSetLog(setLog);
+      setsToSync.add(setLog); // 【新增】
     }
+    
+    // 【新增】手動觸發完整同步 (含 sets)
+    await FirestoreService.instance.saveWorkoutLogWithSets(workoutLog, setsToSync);
   }
 
   Future<void> _showNextSelectionDialog() async {

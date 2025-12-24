@@ -150,8 +150,7 @@ class _WeightTrendPageState extends State<WeightTrendPage> with SingleTickerProv
 
   Widget _buildTrendView({required bool isBMI}) {
     final filteredLogs = _getFilteredLogs(); 
-    final reversedLogs = filteredLogs.reversed.toList(); 
-
+    // 0. Declarations
     List<FlSpot> spots = [];
     double minY = 1000, maxY = 0;
     double? goalValue;
@@ -160,23 +159,47 @@ class _WeightTrendPageState extends State<WeightTrendPage> with SingleTickerProv
       goalValue = double.tryParse(_currentUser?.goalWeight ?? '');
     }
 
-    for (var log in reversedLogs) {
-      final x = log.createdAt.millisecondsSinceEpoch.toDouble();
-      double y = log.weight;
-      
-      if (isBMI && _currentUser != null) {
-        final height = double.tryParse(_currentUser!.height) ?? 0;
-        if (height > 0) {
-          final heightM = height / 100.0;
-          y = y / (heightM * heightM);
+    // 1. Deduplicate: Group by Day (Keep latest log per day)
+    final Map<String, WeightLog> dailyMap = {};
+    for (var log in filteredLogs) {
+        final dateKey = DateFormat('yyyy-MM-dd').format(log.createdAt);
+        // Since filteredLogs is Descending (Newest first), the first one we see is the latest for that day?
+        // Wait, _getFilteredLogs returns unsorted or DB ordered (usually Newest first or Oldest first?).
+        // Let's assume we want Latest. 
+        // If we iterate and putIfAbsent, we keep First encountered.
+        // If we overwrite, we keep Last encountered.
+        // Let's ensure we use specific logic.
+        if (!dailyMap.containsKey(dateKey)) {
+             dailyMap[dateKey] = log;
         } else {
-          y = 0;
+             // Compare createdAt
+             if (log.createdAt.isAfter(dailyMap[dateKey]!.createdAt)) {
+                 dailyMap[dateKey] = log;
+             }
         }
-      }
+    }
+    // Convert back to List and Sort by Date Ascending for Charting (Oldest -> Newest)
+    final List<WeightLog> uniqueDailyLogs = dailyMap.values.toList()
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt)); // Ascending
 
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-      spots.add(FlSpot(x, y));
+    // Use uniqueDailyLogs for spots
+    for (int i = 0; i < uniqueDailyLogs.length; i++) {
+        final log = uniqueDailyLogs[i];
+        double y = log.weight;
+        
+        if (isBMI && _currentUser != null) {
+            final height = double.tryParse(_currentUser!.height) ?? 0;
+            if (height > 0) {
+                final heightM = height / 100.0;
+                y = y / (heightM * heightM);
+            } else {
+                y = 0;
+            }
+        }
+        
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        spots.add(FlSpot(i.toDouble(), y));
     }
     
     if (goalValue != null) {
@@ -191,21 +214,16 @@ class _WeightTrendPageState extends State<WeightTrendPage> with SingleTickerProv
     if (spots.isEmpty) { minY = 0; maxY = 100; }
     if (minY == maxY) { minY -= 5; maxY += 5; }
 
-    final now = DateTime.now();
-    final double maxX = now.millisecondsSinceEpoch.toDouble(); 
-    double minX;
-
-    switch (_selectedRange) {
-      case '1週': minX = now.subtract(const Duration(days: 7)).millisecondsSinceEpoch.toDouble(); break;
-      case '1個月': minX = now.subtract(const Duration(days: 30)).millisecondsSinceEpoch.toDouble(); break;
-      case '3個月': minX = now.subtract(const Duration(days: 90)).millisecondsSinceEpoch.toDouble(); break;
-      case '1年': minX = now.subtract(const Duration(days: 365)).millisecondsSinceEpoch.toDouble(); break;
-      default: minX = now.subtract(const Duration(days: 30)).millisecondsSinceEpoch.toDouble();
-    }
+    // X-Axis Layout Logic (Ordinal)
+    double minX = -0.5;
+    double maxX = (spots.isEmpty ? 0 : spots.length - 1) + 0.5;
     
-    double xInterval = (maxX - minX) / 5;
-
-    final DateTime? firstRecordDate = _allLogs.isNotEmpty ? _allLogs.last.createdAt : null;
+    // Determine label step to show roughly 5 labels max
+    int itemCount = spots.length;
+    int labelStep = 1;
+    if (itemCount > 5) {
+        labelStep = (itemCount / 5).ceil();
+    }
 
     return Column(
       children: [
@@ -217,30 +235,38 @@ class _WeightTrendPageState extends State<WeightTrendPage> with SingleTickerProv
               mainAxisAlignment: MainAxisAlignment.center,
               children: _ranges.map((range) {
                 final isSelected = range == _selectedRange;
+                final nowExact = DateTime.now();
+                
+                // Button Logic: Use earliest record from ALL logs to determine capability
+                final firstDate = _allLogs.isNotEmpty ? _allLogs.last.createdAt : null; 
+                // Note: Assuming _allLogs is sorted desc? If not, .last might not be oldest. 
+                // Safest to sort or find min. Ideally Database returns sorted. 
+                // Let's assume _allLogs is reliable. 
                 
                 bool isEnabled = true;
-                if (firstRecordDate != null) {
-                  final diff = now.difference(firstRecordDate).inDays;
-                  if (range == '1個月' && diff < 7) isEnabled = false;
-                  if (range == '3個月' && diff < 30) isEnabled = false;
-                  if (range == '1年' && diff < 90) isEnabled = false;
+                if (firstDate != null) {
+                  final diff = nowExact.difference(firstDate).inDays;
+                  // Strict Check: specific range needs specific history
+                  // User requested roughly calculating if data is enough
+                  if (range == '1個月' && diff < 15) isEnabled = false; // Need ~2 weeks for 1 month view
+                  if (range == '3個月' && diff < 45) isEnabled = false; // Need ~1.5 months for 3 month view
+                  if (range == '1年' && diff < 150) isEnabled = false; // Need ~5 months for 1 year view
                 } else {
                    if (range != '1週') isEnabled = false;
                 }
-                if (range == '1週') isEnabled = true;
+                if (range == '1週') isEnabled = true; // Always enable 1 week
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   child: ChoiceChip(
                     label: Text(range),
                     selected: isSelected,
-                    disabledColor: Colors.grey.withValues(alpha: 0.1), // 【修正 3】使用 withValues
+                    disabledColor: Colors.grey.withValues(alpha: 0.1),
                     labelStyle: TextStyle(
                       color: isEnabled 
-                          ? (isSelected ? Colors.black : Colors.white) // 選中時字變黑，未選中白
+                          ? (isSelected ? Colors.black : Colors.white) 
                           : Colors.grey,
                     ),
-                    // 【修正 2】正確使用 isEnabled 來禁用按鈕
                     onSelected: isEnabled ? (selected) {
                       if (selected) setState(() => _selectedRange = range);
                     } : null, 
@@ -262,8 +288,7 @@ class _WeightTrendPageState extends State<WeightTrendPage> with SingleTickerProv
                   isCurved: true,
                   color: isBMI ? Colors.orange : Colors.blue,
                   barWidth: 3,
-                  dotData: const FlDotData(show: false),
-                  // 【修正 3】使用 withValues
+                  dotData: const FlDotData(show: true),
                   belowBarData: BarAreaData(show: true, color: (isBMI ? Colors.orange : Colors.blue).withValues(alpha: 0.1)),
                 ),
               ],
@@ -292,22 +317,49 @@ class _WeightTrendPageState extends State<WeightTrendPage> with SingleTickerProv
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 30,
-                    interval: xInterval,
+                    interval: 1, 
                     getTitlesWidget: (value, meta) {
-                      if (value < minX || value > maxX) return const SizedBox();
-                      final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-                      String text;
-                      if (_selectedRange == '1年') {
-                        text = '${date.month}月';
-                      } else {
-                        text = '${date.month}/${date.day}';
-                      }
-                      return SideTitleWidget(
-                        axisSide: meta.axisSide,
-                        space: 4,
-                        fitInside: SideTitleFitInsideData.fromTitleMeta(meta),
-                        child: Text(text, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                      );
+                        // Strict Integer Check: Prevent duplicate labels from padding values (e.g. -0.0001)
+                        if (value % 1 != 0) return const SizedBox();
+                        
+                        int index = value.toInt();
+                        if (index < 0 || index >= uniqueDailyLogs.length) return const SizedBox();
+                        
+                        // Strict Label Count Strategy:
+                        // Only show Start (0), End (N), and maybe Middle.
+                        // Aim for Max 3 labels to guarantee NO OVERLAP on any screen size.
+                        
+                        bool shouldShow = false;
+                        int lastIndex = uniqueDailyLogs.length - 1;
+                        
+                        if (index == 0) shouldShow = true; // Always show Head
+                        else if (index == lastIndex) shouldShow = true; // Always show Tail
+                        else {
+                           // For intermediate labels, only show if we have enough points
+                           // and it is exactly in the middle.
+                           if (uniqueDailyLogs.length > 4) { // Only if ample data
+                               if (index == (lastIndex / 2).round()) {
+                                   shouldShow = true; // Show Middle
+                               }
+                           }
+                        }
+
+                        if (!shouldShow) return const SizedBox();
+
+                        final date = uniqueDailyLogs[index].createdAt;
+                        String text;
+                        if (_selectedRange == '1年') {
+                            text = '${date.month}月';
+                        } else {
+                            text = (_selectedRange == '1週') ? '${date.day}' : '${date.month}/${date.day}';
+                        }
+                      
+                        return SideTitleWidget(
+                            axisSide: meta.axisSide,
+                            space: 4,
+                            fitInside: SideTitleFitInsideData.disable(), 
+                            child: Text(text, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                        );
                     },
                   ),
                 ),
@@ -322,13 +374,20 @@ class _WeightTrendPageState extends State<WeightTrendPage> with SingleTickerProv
                 topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
               ),
-              gridData: const FlGridData(show: true, drawVerticalLine: false),
+              gridData: FlGridData(
+                show: true, 
+                drawVerticalLine: true,
+                verticalInterval: 1, // Grid line for every data point
+              ),
               borderData: FlBorderData(show: true, border: Border.all(color: Colors.white12)),
               lineTouchData: LineTouchData(
                 touchTooltipData: LineTouchTooltipData(
                   getTooltipItems: (touchedSpots) {
                     return touchedSpots.map((spot) {
-                      final date = DateTime.fromMillisecondsSinceEpoch(spot.x.toInt());
+                      final index = spot.x.toInt();
+                      if (index < 0 || index >= uniqueDailyLogs.length) return null;
+                      
+                      final date = uniqueDailyLogs[index].createdAt;
                       final dateStr = DateFormat('MM/dd').format(date);
                       final valueStr = isBMI ? spot.y.toStringAsFixed(1) : '${spot.y}kg';
                       return LineTooltipItem('$dateStr\n$valueStr', const TextStyle(color: Colors.white));

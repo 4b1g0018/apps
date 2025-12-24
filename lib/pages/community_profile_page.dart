@@ -92,7 +92,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
              account: cloudData['email'] ?? widget.account,
              password: '', height: '', weight: '', age: '', bmi: '',
              nickname: cloudData['nickname'],
-             hometown: cloudData['hometown'],
+             isPublic: (cloudData['isPublic'] is int) ? (cloudData['isPublic'] == 1) : (cloudData['isPublic'] ?? true), // 【修正】讀取公開狀態
              photoUrl: avatarBase64 ?? cloudData['photoUrl'], // 優先使用獨立集合的頭像
            );
            _isLoading = false;
@@ -110,7 +110,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
              account: data['email'] ?? widget.account,
              password: '', height: '', weight: '', age: '', bmi: '',
              nickname: data['nickname'],
-             hometown: data['hometown'],
+             isPublic: (data['isPublic'] is int) ? (data['isPublic'] == 1) : (data['isPublic'] ?? true), // 【修正】讀取公開狀態
            );
            _isLoading = false;
          });
@@ -137,6 +137,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
     await showDialog(
       context: context,
       builder: (dialogContext) {
+        bool isPublic = _displayUser!.isPublic; // 初始狀態
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
@@ -205,6 +206,24 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
                       focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.blue)),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  
+                  // 公開/不公開切換
+                   SwitchListTile(
+                    title: const Text('公開個人檔案', style: TextStyle(color: Colors.white)),
+                    subtitle: Text(
+                      isPublic ? '允許其他使用者搜尋到您' : '其他使用者無法搜尋到您', 
+                      style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                    ),
+                    value: isPublic,
+                    onChanged: (val) {
+                      setStateDialog(() {
+                        isPublic = val;
+                      });
+                    },
+                    activeColor: Colors.blue,
+                    contentPadding: EdgeInsets.zero,
+                  ),
                 ],
               ),
               actions: [
@@ -221,6 +240,7 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
                     // 更新邏輯
                     final updatedUser = _displayUser!.copyWith(
                       nickname: newNickname.isEmpty ? _displayUser!.nickname : newNickname,
+                      isPublic: isPublic, // 更新公開狀態
                       photoUrl: newPhotoBase64,
                     );
 
@@ -450,10 +470,26 @@ class _CommunityProfilePageState extends State<CommunityProfilePage> {
 
             
             const SizedBox(height: 32),
-            const Text('已上傳貼文歷史', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            const Divider(height: 16),
-            
-            _buildRealWeekHistory(),
+            if (_isMe || (_displayUser?.isPublic ?? true)) ...[
+              const Text('已上傳貼文歷史', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              const Divider(height: 16),
+              
+              _buildRealWeekHistory(),
+            ] else ...[
+               const SizedBox(height: 50),
+               Center(
+                 child: Column(
+                   children: [
+                     Icon(Icons.lock_outline, size: 60, color: Colors.grey.shade600),
+                     const SizedBox(height: 16),
+                     Text(
+                       '此人為非公開帳戶', 
+                       style: TextStyle(color: Colors.grey.shade400, fontSize: 18),
+                     ),
+                   ],
+                 ),
+               ),
+            ],
 
             const SizedBox(height: 50),
           ],

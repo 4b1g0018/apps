@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fbAuth;
 import '../models/workout_log_model.dart'; 
 import '../models/weight_log_model.dart'; 
 import '../models/user_model.dart'; // 【新增】 
+import '../models/set_log_model.dart'; // 【新增】 
 
 class FirestoreService {
   static final FirestoreService instance = FirestoreService._internal();
@@ -19,8 +20,8 @@ class FirestoreService {
 
   // 【修改】擴充此方法，支援所有個人資料欄位
   Future<void> syncUserData({
-    String? nickname, 
-    String? hometown,
+    String? nickname,
+    bool? isPublic, // 【新增】
     String? height,
     String? weight,
     String? age,
@@ -30,6 +31,7 @@ class FirestoreService {
     String? bmr,
 
     String? goalWeight,
+    String? trainingDays, // 【新增】
     String? photoUrl, // 【新增】
   }) async {
     final user = _auth.currentUser;
@@ -39,9 +41,13 @@ class FirestoreService {
     final Map<String, dynamic> data = {
       'last_active': FieldValue.serverTimestamp(),
     };
+    // 【新增】自動同步 Email，確保搜尋功能正常
+    if (user.email != null) {
+      data['email'] = user.email;
+    }
     
     if (nickname != null) data['nickname'] = nickname;
-    if (hometown != null) data['hometown'] = hometown;
+    if (isPublic != null) data['isPublic'] = isPublic; // 【新增】
     if (height != null) data['height'] = height;
     if (weight != null) data['weight'] = weight;
     if (age != null) data['age'] = age;
@@ -50,6 +56,7 @@ class FirestoreService {
     if (gender != null) data['gender'] = gender;
     if (bmr != null) data['bmr'] = bmr;
     if (goalWeight != null) data['goalWeight'] = goalWeight;
+    if (trainingDays != null) data['trainingDays'] = trainingDays; // 【新增】
     if (photoUrl != null) data['photoUrl'] = photoUrl; // 【新增】
 
     await _db.collection('users').doc(user.uid).set(data, SetOptions(merge: true));
@@ -94,7 +101,7 @@ class FirestoreService {
     // 1. 更新基本資料 (不含頭像)
     await syncUserData(
       nickname: user.nickname,
-      hometown: user.hometown,
+      isPublic: user.isPublic, // 【新增】
       height: user.height,
       weight: user.weight,
       age: user.age,
@@ -123,20 +130,20 @@ class FirestoreService {
       for (var doc in emailSnapshot.docs) {
         final data = doc.data();
         data['uid'] = doc.id;
-        uniqueResults[doc['email']] = data;
+        uniqueResults[doc.id] = data; // 【修正】改用 uid 作為唯一 Key
       }
       
       final nicknameSnapshot = await _db.collection('users').where('nickname', isGreaterThanOrEqualTo: query).where('nickname', isLessThan: '$query\uf8ff').get();
       for (var doc in nicknameSnapshot.docs) {
         final data = doc.data();
         data['uid'] = doc.id;
-        if (data.containsKey('email')) {
-           uniqueResults[doc['email']] = data;
-        }
+        // 【修正】移除 email 檢查，並使用 uid 作為 Key
+        uniqueResults[doc.id] = data; 
       }
     } catch (e) {
       print('搜尋失敗: $e');
     }
+    // 【修改】不再過濾非公開帳戶，讓所有搜尋到的結果都回傳
     return uniqueResults.values.toList();
   }
 
@@ -215,6 +222,55 @@ class FirestoreService {
     return snapshot.docs.map((doc) => doc.data()).toList();
   }
 
+  // 【新增】完整備份訓練紀錄 (含組數)
+  Future<void> saveWorkoutLogWithSets(WorkoutLog log, List<SetLog> sets) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    try {
+      // 1. 儲存 WorkoutLog 本體
+      final docRef = await _db.collection('users').doc(user.uid).collection('workout_logs').add(log.toMap());
+      
+      // 2. 儲存 SetLogs 到子集合
+      final batch = _db.batch();
+      for (var setLog in sets) {
+        final setRef = docRef.collection('sets').doc();
+        batch.set(setRef, setLog.toMap());
+      }
+      await batch.commit();
+      
+      print('完整訓練紀錄已備份 (含 ${sets.length} 組 sets)');
+    } catch (e) {
+      print('訓練紀錄備份失敗: $e');
+    }
+  }
+
+  // 【新增】完整還原訓練紀錄 (含組數)
+  Future<List<Map<String, dynamic>>> fetchBackedUpWorkoutLogsWithSets() async {
+    final user = _auth.currentUser;
+    if (user == null) return [];
+    
+    List<Map<String, dynamic>> results = [];
+    
+    try {
+      final snapshot = await _db.collection('users').doc(user.uid).collection('workout_logs').orderBy('completedAt', descending: true).get();
+      
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        
+        // 抓取子集合 sets
+        final setsSnapshot = await doc.reference.collection('sets').orderBy('setNumber').get();
+        final setsData = setsSnapshot.docs.map((s) => s.data()).toList();
+        
+        data['sets'] = setsData; // 將 sets 塞入 map
+        results.add(data);
+      }
+    } catch (e) {
+      print('獲取訓練紀錄失敗: $e');
+    }
+    return results;
+  }
+
   Future<void> saveWeightLog(WeightLog log) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -231,5 +287,48 @@ class FirestoreService {
     if (user == null) return [];
     final snapshot = await _db.collection('users').doc(user.uid).collection('weight_logs').get();
     return snapshot.docs.map((doc) => doc.data()).toList();
+  }
+
+  // 【新增】課表同步功能
+  Future<void> savePlanItems(List<Map<String, dynamic>> items) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    
+    try {
+      final batch = _db.batch();
+      final collection = _db.collection('users').doc(user.uid).collection('plan_items');
+      
+      // 1. 先取得舊資料並刪除 (覆蓋模式)
+      final snapshot = await collection.get();
+      for (var doc in snapshot.docs) {
+         batch.delete(doc.reference);
+      }
+      
+      // 2. 寫入新資料
+      for (var item in items) {
+         final docRef = collection.doc(); 
+         final data = Map<String, dynamic>.from(item);
+         data.remove('id'); // 移除本地 SQLite ID
+         batch.set(docRef, data);
+      }
+      
+      await batch.commit();
+      print('課表已備份至雲端 (${items.length} 筆)');
+    } catch (e) {
+      print('課表備份失敗: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchBackedUpPlanItems() async {
+     final user = _auth.currentUser;
+     if (user == null) return [];
+     
+     try {
+       final snapshot = await _db.collection('users').doc(user.uid).collection('plan_items').get();
+       return snapshot.docs.map((doc) => doc.data()).toList();
+     } catch (e) {
+       print('獲取課表失敗: $e');
+       return [];
+     }
   }
 }

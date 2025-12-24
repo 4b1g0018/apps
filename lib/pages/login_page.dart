@@ -8,6 +8,9 @@ import '../services/database_helper.dart';
 import '../services/firestore_service.dart'; 
 import '../models/user_model.dart'; 
 import '../models/weight_log_model.dart';
+import '../models/workout_log_model.dart'; // 【新增】
+import '../models/plan_item_model.dart'; // 【新增】
+import '../models/set_log_model.dart'; // 【新增】
 import '../services/mock_data_service.dart'; // 【新增】
 import '../main.dart';
 
@@ -114,10 +117,49 @@ class _LoginPageState extends State<LoginPage> {
               gender: cloudData['gender'],
               bmr: cloudData['bmr'],
               goalWeight: cloudData['goalWeight'],
+              trainingDays: cloudData['trainingDays'], // 【新增】還原練習日
               nickname: cloudData['nickname'],
-              hometown: cloudData['hometown'],
             );
             await DatabaseHelper.instance.insertUser(restoredUser.toMap());
+            
+            // 【新增】還原課表
+            try {
+              final plans = await FirestoreService.instance.fetchBackedUpPlanItems();
+              for (var planMap in plans) {
+                // 需要重新轉為 PlanItem 模型並寫入
+                // 注意 PlanItem.fromMap 使用動態 map，這裡直接傳入即可
+                // 但要小心 id 衝突，insertPlanItem 會自動生成新 id
+                await DatabaseHelper.instance.insertPlanItem(PlanItem.fromMap(planMap));
+              }
+            } catch (e) {
+               print('還原課表錯誤: $e');
+            }
+
+            // 【新增】還原訓練紀錄 (含 Sets)
+            try {
+              final logs = await FirestoreService.instance.fetchBackedUpWorkoutLogsWithSets();
+              for (var logData in logs) {
+                 final workoutLog = WorkoutLog.fromMap(logData);
+                 final setsData = logData['sets'] as List<dynamic>? ?? [];
+                 
+                 // 插入 workout_logs，取得新的 local ID
+                 final newLogId = await DatabaseHelper.instance.insertWorkoutLog(workoutLog, syncToCloud: false);
+                 
+                 // 插入 set_logs
+                 for (var setData in setsData) {
+                    final setLog = SetLog(
+                      workoutLogId: newLogId, // 關聯新的 ID
+                      setNumber: setData['setNumber'],
+                      weight: (setData['weight'] as num).toDouble(),
+                      reps: setData['reps'],
+                    );
+                    await DatabaseHelper.instance.insertSetLog(setLog);
+                 }
+              }
+              print('還原訓練紀錄成功: ${logs.length} 筆');
+            } catch (e) {
+               print('還原訓練紀錄錯誤: $e');
+            }
           } else {
             // 雲端也沒資料 -> 建立預設使用者
             await DatabaseHelper.instance.insertUser({
@@ -166,6 +208,7 @@ class _LoginPageState extends State<LoginPage> {
           'fat': _fat.text,
           'gender': gender,
           'bmr': bmr,
+          'isPublic': 1, // 【新增】預設公開
         });
 
         // 2. 註冊時立刻備份到雲端
@@ -177,7 +220,8 @@ class _LoginPageState extends State<LoginPage> {
           fat: _fat.text,
           gender: gender,
           bmr: bmr,
-          nickname: email.split('@')[0], 
+          nickname: email.split('@')[0],
+          isPublic: true, // 【新增】同步到雲端
         );
 
         // 3. 自動記錄初始體重
@@ -230,7 +274,7 @@ class _LoginPageState extends State<LoginPage> {
             'height': '170', 'weight': '60', 'age': '30', 'bmi': '20',
             'gender': 'male', 'bmr': '1500',
             'nickname': '訪客',
-            'hometown': '未知',
+            'isPublic': 1, // 【新增】
          });
          
          // 【新增】產生模擬數據

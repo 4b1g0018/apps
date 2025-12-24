@@ -79,7 +79,7 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
                     final email = user['email'] ?? '';
                     final hometown = user['hometown'] ?? '未知地區';
                     // 使用 email 作為唯一識別，傳遞給個人頁面
-                    final account = user['email'] as String; 
+                    final account = (user['email'] as String?) ?? ''; 
                     final uid = user['uid'] as String?;
 
                     return ListTile(
@@ -99,7 +99,7 @@ class _FriendSearchPageState extends State<FriendSearchPage> {
                         },
                       ),
                       title: Text(nickname, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      subtitle: Text('$email\n$hometown', style: TextStyle(color: Colors.grey.shade400)),
+                      subtitle: Text(email, style: TextStyle(color: Colors.grey.shade400)),
                       isThreeLine: true,
                       onTap: () {
                         // 點擊後跳轉到對方的個人頁面
