@@ -1,130 +1,111 @@
 # 專案程式碼複習指南 (Codebase Review Guide)
 
-## 1. 專案結構總覽 (Project Structure)
-本專案採用經典的 **MVC (Model-View-Controller)** 分層架構變體：
-
-*   **Models (`lib/models/`)**：**資料模型層**。
-    *   負責定義資料的結構與型態。
-    *   負責 JSON/Map 與物件之間的轉換。
-*   **Services (`lib/services/`)**：**服務層 (Controller)**。
-    *   負責商業邏輯、資料庫存取、API 呼叫。
-*   **Pages (`lib/pages/`)**：**視圖層 (View)**。
-    *   負責 UI 畫面的呈現與使用者互動。
+這份文件詳細列出了專案中 `Models`、`Services` 與 `Pages` 目錄下的**所有檔案**及其功能說明。
 
 ---
 
-## 2. 核心檔案導讀 (Key Files)
+## 1. 資料模型 (Models) - 共 7 個檔案
+位於 `lib/models/`，負責定義資料結構。
 
-### A. Models (資料模型)
-
-| 檔案名稱 (`lib/models/`) | 用途 (Purpose) | 關鍵特性 (Key Features) |
+| 檔案名稱 | 功能說明 (Description) | 關鍵欄位/方法 |
 | :--- | :--- | :--- |
-| **`user_model.dart`** | 定義使用者資料結構 | `factory fromMap()`: JSON 轉物件<br>`isPublic`: 隱私設定欄位 |
-| **`workout_log_model.dart`** | 訓練紀錄模型 | `toIso8601String()`: 時間格式化<br>`bodyPart`: 關聯列舉 (Enum) |
-| **`plan_item_model.dart`** | 課表項目模型 | 封裝每週訓練排程 (Week Plan) |
-| **`set_log_model.dart`** | 組數模型 | 定義每一組的重量與次數 (Weight/Reps) |
-
-### B. Services (服務層)
-
-| 檔案名稱 (`lib/services/`) | 用途 (Purpose) | 語法亮點 (Syntax Highlights) |
-| :--- | :--- | :--- |
-| **`firestore_service.dart`** | 雲端資料庫操作 | **`Singleton`**: 單例模式<br>**`Stream`**: 即時數據串流<br>**`Batch`**: 批次寫入 |
-| **`auth_service.dart`** | 身分驗證管理 | **`Firebase Auth`**: 整合 Google 登入<br>**`Anonymous`**: 訪客匿名登入 |
-| **`database_helper.dart`** | 本地資料庫 (SQLite) | **`sqflite`**: 本地 SQL 操作<br>**`CRUD`**: 增刪改查封裝 |
-| **`pose_detector_service.dart`**| AI 姿勢運算 | **`Google ML Kit`**: 整合 AI 模型<br>**`Vector Math`**: 向量角度計算 |
-
-### C. Pages (視圖層)
-
-| 檔案名稱 (`lib/pages/`) | 用途 (Purpose) | UI 元件 (Components) |
-| :--- | :--- | :--- |
-| **`training_session_page.dart`** | AI 訓練主畫面 | **`Stack`**: 疊加相機與繪圖層<br>**`CustomPainter`**: 繪製骨架線條 |
-| **`login_page.dart`** | 登入與註冊 | **`Form`**: 表單驗證<br>**`TextFormField`**: 輸入框邏輯 |
-| **`dashboard_home_page.dart`** | 首頁儀表板 | **`FutureBuilder`**: 非同步資料載入<br>**`ListView`**: 列表渲染 |
-| **`community_profile_page.dart`**| 社群個人檔案 | **`StreamBuilder`**: 監聽貼文更新<br>**`Base64`**: 圖片解碼顯示 |
+| **`user_model.dart`** | **使用者模型**<br>定義使用者的基本資料與設定。 | `isPublic`: 公開/不公開<br>`fromMap()`: 這裡處理了資料型別轉換的邏輯 |
+| **`workout_log_model.dart`** | **訓練紀錄主檔**<br>代表一次完整的運動紀錄 (例如：今天練胸)。 | `completedAt`: 完成時間<br>`bodyPart`: 訓練部位 (Enum) |
+| **`set_log_model.dart`** | **組數明細檔**<br>代表訓練中的「每一組」數據。 | `weight`: 重量 (kg)<br>`reps`: 次數 |
+| **`plan_item_model.dart`** | **課表項目**<br>定義每週計畫中某一天的訓練內容。 | `dayOfWeek`: 星期幾 (1-7)<br>`isRestDay`: 是否休息日 |
+| **`weight_log_model.dart`** | **體重紀錄**<br>用於追蹤使用者的體重變化。 | `weight`: 體重數值<br>`createdAt`: 測量日期 |
+| **`exercise_model.dart`** | **內建動作**<br>系統預設的訓練動作資料 (Hard-coded)。 | `imagePath`: 動作示範圖路徑<br>`BodyPart`: 部位列舉 |
+| **`custom_exercise.dart`** | **自定義動作**<br>使用者自行新增的客製化動作。 | `id`: 資料庫主鍵<br>此模型允許使用者擴充動作庫而不受限於內建列表。 |
 
 ---
 
-## 3. 關鍵語法複習 (Syntax Review)
+## 2. 核心服務 (Services) - 共 6 個檔案
+位於 `lib/services/`，負責商業邏輯與資料存取。
+
+| 檔案名稱 | 功能說明 (Description) | 技術亮點 |
+| :--- | :--- | :--- |
+| **`firestore_service.dart`** | **雲端資料庫服務**<br>處理 Firebase Firestore 的所有 CRUD 操作。 | **Singleton**: 單例模式確保連線唯一<br>**Batch**: 批次寫入優化效能 |
+| **`database_helper.dart`** | **本地資料庫服務**<br>處理 SQLite 的所有操作 (離線存取用)。 | **sqflite**: 封裝了 SQL 語法<br>負責將資料保存在手機端 |
+| **`auth_service.dart`** | **身分驗證服務**<br>處理登入、註冊、登出與訪客模式。 | **Firebase Auth**: 整合 Google 驗證<br>**Anonymous**: 訪客匿名登入機制 |
+| **`pose_detector_service.dart`** | **AI 姿勢辨識服務**<br>處理相機串流影像，計算骨架與計數。 | **Google ML Kit**: 整合 AI 模型<br>**Vector Math**: 向量角度計算邏輯 |
+| **`mock_data_service.dart`** | **模擬數據生成服務**<br>為訪客模式快速生成假的歷史紀錄。 | 用於 Demo 展示，讓新用戶能看到豐富的圖表數據。 |
+| **`health_service.dart`** | **健康數據服務**<br>整合 Apple Health (HealthKit) 讀取數據。 | 負責權限請求與讀取步數、熱量等生理數據。 |
+
+---
+
+## 3. 頁面視圖 (Pages) - 共 21 個檔案
+位於 `lib/pages/`，負責所有畫面呈現。
+
+### A. 登入與導航
+| 檔案名稱 | 功能說明 |
+| :--- | :--- |
+| **`login_page.dart`** | **登入/註冊頁**：App 的入口，包含表單驗證與訪客登入按鈕。 |
+| **`main_menu_page.dart`** | **底部導航欄 (Main Shell)**：負責切換首頁、訓練、社群等分頁的容器。 |
+
+### B. 首頁與儀表板
+| 檔案名稱 | 功能說明 |
+| :--- | :--- |
+| **`dashboard_home_page.dart`** | **首頁儀表板**：顯示今日計畫、本週摘要與快速開始按鈕。 |
+| **`weight_trend_page.dart`** | **體重趨勢圖**：繪製體重變化的折線圖，提供數據可視化。 |
+| **`workout_history_page.dart`** | **訓練歷史紀錄**：依照日期列出過去的所有訓練項目。 |
+| **`training_summary_page.dart`** | **本週訓練摘要**：統計本週的訓練頻率、部位分佈等數據。 |
+| **`profile_page.dart`** | **個人檔案**：顯示個人基本資料 (非社群版)，可編輯身高體重。 |
+| **`settings_page.dart`** | **設定頁面**：包含雲端備份、還原、切換深色模式與登出功能。 |
+
+### C. 訓練流程 (核心功能)
+| 檔案名稱 | 功能說明 |
+| :--- | :--- |
+| **`training_mode_selection_page.dart`** | **模式選擇**：選擇「AI 計數模式」或「手動紀錄模式」。 |
+| **`select_part_page.dart`** | **選擇部位**：訓練第一步，選擇要練胸、背或腿。 |
+| **`select_exercise_page.dart`** | **選擇動作**：訓練第二步，選擇具體的動作 (如伏地挺身)。 |
+| **`exercise_setup_page.dart`** | **動作設定**：(AI模式前) 確認動作教學與相機架設引導。 |
+| **`training_session_page.dart`** | **AI 訓練進行中**：開啟相機，即時顯示骨架與計數回饋。 |
+| **`manual_workout_log_page.dart`** | **手動紀錄頁**：不開相機，直接手動輸入重量與次數。 |
+| **`plan_editor_page.dart`** | **課表編輯器**：讓使用者安排每週哪幾天要練什麼部位。 |
+
+### D. 社群與互動
+| 檔案名稱 | 功能說明 |
+| :--- | :--- |
+| **`community_profile_page.dart`** | **社群個人主頁**：顯示大頭貼、貼文牆 (含公開/不公開邏輯)。 |
+| **`create_post_page.dart`** | **發文頁面**：撰寫貼文內容並上傳圖片 (Base64)。 |
+| **`friend_search_page.dart`** | **搜尋好友**：輸入 Email 或暱稱搜尋其他使用者。 |
+| **`post_detail_page.dart`** | **貼文詳情**：點擊貼文後進入的詳細閱讀頁面。 |
+
+### E. 其他功能
+| 檔案名稱 | 功能說明 |
+| :--- | :--- |
+| **`video_analysis_page.dart`** | **影片分析**：(進階功能) 上傳影片進行 AI 動作分析。 |
+| **`device_connection_page.dart`** | **裝置連線**：(預留功能) 用於連接藍牙心率帶或其他硬體。 |
+
+---
+
+## 4. 關鍵語法複習 (Syntax Review)
 
 ### 1. 單例模式 (Singleton Pattern)
-**用途**：確保全域只有一個資料庫連線實例，避免重複連線浪費資源。
+**用途**：確保全域只有一個實例。
 ```dart
 class FirestoreService {
-  // 1. 定義靜態私有實例 (唯一的)
   static final FirestoreService instance = FirestoreService._internal();
-  
-  // 2. 私有建構子，防止外部直接 new FirestoreService()
   FirestoreService._internal(); 
 }
-
-// 呼叫方式：
-FirestoreService.instance.searchUsers(...);
 ```
 
 ### 2. 非同步處理 (Async/Await)
-**用途**：避免資料庫讀取或網路請求卡住 UI，使用 `async/wait` 等待結果。
+**用途**：避免卡住 UI，等待長時間操作。
 ```dart
-// Future<User?>: 代表這個函式「未來」會回傳一個 User 物件 (或 null)
-Future<User?> getUserByAccount(String account) async {
-  // await: 暫停函式執行，直到資料庫查詢完成
-  final maps = await _db.query(...);
-  
-  if (maps.isEmpty) return null;
-  return User.fromMap(maps.first);
+Future<void> loadData() async {
+  final data = await DatabaseHelper.instance.getAll();
+  setState(() => _data = data);
 }
 ```
 
-### 3. 串流監聽 (Stream & StreamBuilder)
-**用途**：當後端資料改變（如有人按讚、發新文）時，App 畫面會自動刷新。
+### 3. 工廠建構子 (Factory Constructor)
+**用途**：將 JSON 轉為物件。
 ```dart
-StreamBuilder<QuerySnapshot>(
-  stream: FirestoreService.instance.getPostsStream(), // 1. 監聽這個資料源
-  builder: (context, snapshot) {
-    // 2. 判斷資料狀態
-    if (snapshot.connectionState == ConnectionState.waiting) {
-      return CircularProgressIndicator(); // 載入中轉圈圈
-    }
-    
-    // 3. 有資料，自動渲染 ListView
-    final docs = snapshot.data?.docs ?? [];
-    return ListView.builder(
-      itemCount: docs.length,
-      itemBuilder: (context, index) => PostCard(data: docs[index]),
-    ); 
-  },
-)
-```
-
-### 4. 工廠建構子 (Factory Constructor)
-**用途**：用於將資料庫回傳的 Map (JSON格式) 轉換為 Dart 物件，並處理錯誤數據。
-```dart
-class User {
-  // factory: 不一定要建立新實例，可以回傳快取或處理邏輯
-  factory User.fromMap(Map<String, dynamic> map) {
-    return User(
-      account: map['account'],
-      // 處理資料型別轉換 (如 int 轉 bool)
-      isPublic: (map['isPublic'] is int) ? (map['isPublic'] == 1) : true, 
-      photoUrl: map['photoUrl'],
-    );
-  }
+factory User.fromMap(Map<String, dynamic> map) {
+  return User(
+    account: map['account'],
+    isPublic: map['isPublic'] == 1, 
+  );
 }
 ```
-
----
-
-## 4. 資料庫架構筆記 (Database Schema)
-
-### 本地 (SQLite)
-*   User table: 存帳號密碼、身體數據。
-*   WorkoutLog table: 存訓練日期、動作名稱。
-*   WeightLog table: 存體重變化。
-
-### 雲端 (Firestore - NoSQL)
-*   **Collection `users`**: 
-    *   Document (uid): 存用戶基本資料。
-        *   Sub-collection `workout_logs`: 備份訓練紀錄。
-*   **Collection `posts`**: 
-    *   Document (auto-id): 存貼文內容、`imageUrl` (Base64)。
-*   **Collection `avatars`** (冷熱分離):
-    *   Document (uid): 只存 `imageBase64` 大頭貼，優化讀取效能。
